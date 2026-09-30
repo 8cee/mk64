@@ -16,6 +16,8 @@ add_library(mk64_android SHARED
     host_message_queue.cpp
     host_gfx_commands.cpp
     game_runtime.cpp
+    android_gfx_api.cpp
+    portable/gfx/gfx_cc.c
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
