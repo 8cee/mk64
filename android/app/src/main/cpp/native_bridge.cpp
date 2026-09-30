@@ -186,3 +186,8 @@ extern "C" bool mk64_android_pi_read(uintptr_t romAddress, void* destination, si
     }
     return ok;
 }
+
+
+extern "C" int mk64_android_dma_copy(void* destination, uintptr_t romAddress, size_t size) {
+    return mk64_android_pi_read(romAddress, destination, size) ? 0 : -1;
+}
