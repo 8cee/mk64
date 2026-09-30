@@ -6,6 +6,7 @@ project(mk64_android LANGUAGES C CXX)
 add_library(mk64_android SHARED
     native_bridge.cpp
     host_clock.cpp
+    host_input.cpp
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
