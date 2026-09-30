@@ -11,6 +11,7 @@ add_library(mk64_android SHARED
     mk64_controller_semantics.cpp
     host_rom.cpp
     host_pi.cpp
+    mk64_host_memory.cpp
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
