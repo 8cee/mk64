@@ -9,6 +9,7 @@ add_library(mk64_android SHARED
     host_input.cpp
     host_controller_adapter.cpp
     mk64_controller_semantics.cpp
+    host_rom.cpp
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
