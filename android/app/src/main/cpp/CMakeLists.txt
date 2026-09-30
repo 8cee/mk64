@@ -18,9 +18,18 @@ add_library(mk64_android SHARED
     game_runtime.cpp
     android_gfx_api.cpp
     portable/gfx/gfx_cc.c
+    portable/ultra_shim.c
+    portable/segments.c
+    portable/decoders.c
+    portable/tkmk00_port.c
+    controller_android.cpp
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
 find_library(log_lib log)
 find_library(gles2_lib GLESv2)
 target_link_libraries(mk64_android ${log_lib} ${gles2_lib})
+
+
+target_compile_definitions(mk64_android PRIVATE VERSION_US=1 F3DEX_GBI=1 F3D_OLD=1 NON_MATCHING=1 AVOID_UB=1 _LANGUAGE_C=1 NO_SEGMENTED_MEMORY=1 TARGET_ANDROID=1 PORT_ENABLE_AUDIO=0)
+target_include_directories(mk64_android PRIVATE ../../../../../../include ../../../../../../src ../../../../../../src/racing ../../../../../../src/ending . portable portable/gfx)
