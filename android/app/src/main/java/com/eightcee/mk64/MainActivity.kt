@@ -61,6 +61,17 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         panel.addView(status)
         panel.addView(selectRom)
         root.addView(panel)
+        val touchControls = TouchControlsView(this) { buttons, x, y ->
+            controllerButtons = buttons
+            controllerStickX = x
+            controllerStickY = y
+            pushController()
+        }
+        root.addView(touchControls, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        panel.bringToFront()
         setContentView(root)
         Choreographer.getInstance().postFrameCallback(this)
     }
