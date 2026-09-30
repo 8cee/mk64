@@ -231,12 +231,12 @@ u32 osAiGetLength(void) {
 /* Controllers                                                                */
 /* ------------------------------------------------------------------------- */
 
-extern void controller_psp_init(void);
-extern void controller_psp_read(OSContPad* pad);
+extern void controller_android_init(void);
+extern void controller_android_read(OSContPad* pad);
 
 s32 osContInit(UNUSED OSMesgQueue* mq, u8* bitpattern, OSContStatus* status) {
     int i, plugged = 1;
-    controller_psp_init();
+    controller_android_init();
 #ifdef PORT_NET
     if (port_net_active()) plugged = port_net_players(); // one pad per machine in the session
 #endif
@@ -257,7 +257,7 @@ s32 osContStartReadData(OSMesgQueue* mq) {
 /* The local pad as the game reads it: the PSP controls, plus the scripted
  * input of debug builds.  In a network session this feeds the local slot. */
 void port_local_pad(OSContPad* pad) {
-    controller_psp_read(pad);
+    controller_android_read(pad);
 #ifdef PORT_INPUT_SCRIPT
     {
         extern void port_input_script(OSContPad* pad);
