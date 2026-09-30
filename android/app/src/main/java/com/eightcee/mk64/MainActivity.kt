@@ -10,9 +10,10 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.view.Choreographer
 import java.io.File
 
-class MainActivity : Activity() {
+class MainActivity : Activity(), Choreographer.FrameCallback {
     companion object {
         private const val ROM_PICKER_REQUEST = 64
         init { System.loadLibrary("mk64_android") }
@@ -22,6 +23,8 @@ class MainActivity : Activity() {
     private external fun nativeRuntimeStage(): Int
     private external fun nativeSetRomPath(path: String): Boolean
     private external fun nativeInitPlatform(): Boolean
+    private external fun nativeAdvanceFrame(): Int
+    private external fun nativeResumeClock()
 
     private lateinit var status: TextView
 
@@ -51,6 +54,22 @@ class MainActivity : Activity() {
         panel.addView(selectRom)
         root.addView(panel)
         setContentView(root)
+        Choreographer.getInstance().postFrameCallback(this)
+    }
+
+    override fun doFrame(frameTimeNanos: Long) {
+        nativeAdvanceFrame()
+        Choreographer.getInstance().postFrameCallback(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        nativeResumeClock()
+    }
+
+    override fun onPause() {
+        Choreographer.getInstance().removeFrameCallback(this)
+        super.onPause()
     }
 
     private fun openRomPicker() {
