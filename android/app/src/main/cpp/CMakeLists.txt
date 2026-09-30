@@ -8,6 +8,7 @@ add_library(mk64_android SHARED
     host_clock.cpp
     host_input.cpp
     host_controller_adapter.cpp
+    mk64_controller_semantics.cpp
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
