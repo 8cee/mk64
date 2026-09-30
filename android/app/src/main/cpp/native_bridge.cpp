@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <android/log.h>
+#include <GLES2/gl2.h>
 #include <atomic>
 #include <cstdint>
 #include <fstream>
@@ -190,4 +191,28 @@ extern "C" bool mk64_android_pi_read(uintptr_t romAddress, void* destination, si
 
 extern "C" int mk64_android_dma_copy(void* destination, uintptr_t romAddress, size_t size) {
     return mk64_android_pi_read(romAddress, destination, size) ? 0 : -1;
+}
+
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_eightcee_mk64_Mk64Surface_nativeSurfaceCreated(JNIEnv*, jobject) {
+    glDisable(GL_DITHER);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    MK64_LOGI("OpenGL ES renderer surface created");
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_eightcee_mk64_Mk64Surface_nativeSurfaceChanged(JNIEnv*, jobject, jint width, jint height) {
+    glViewport(0, 0, width, height);
+    MK64_LOGI("renderer viewport %dx%d", width, height);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_eightcee_mk64_Mk64Surface_nativeRenderFrame(JNIEnv*, jobject) {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // F3DEX command execution is connected here as game display lists become
+    // available; keeping rendering on the GLSurfaceView GL thread avoids
+    // Android context ownership races.
 }
