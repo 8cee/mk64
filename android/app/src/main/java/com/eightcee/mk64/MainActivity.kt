@@ -11,6 +11,9 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.view.Choreographer
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
 import java.io.File
 
 class MainActivity : Activity(), Choreographer.FrameCallback {
@@ -25,6 +28,11 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     private external fun nativeInitPlatform(): Boolean
     private external fun nativeAdvanceFrame(): Int
     private external fun nativeResumeClock()
+    private external fun nativeSetController(buttons: Int, stickX: Int, stickY: Int)
+
+    private var controllerButtons = 0
+    private var controllerStickX = 0
+    private var controllerStickY = 0
 
     private lateinit var status: TextView
 
@@ -70,6 +78,61 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     override fun onPause() {
         Choreographer.getInstance().removeFrameCallback(this)
         super.onPause()
+    }
+
+
+    private fun pushController() {
+        nativeSetController(controllerButtons, controllerStickX, controllerStickY)
+    }
+
+    private fun n64ButtonFor(keyCode: Int): Int = when (keyCode) {
+        KeyEvent.KEYCODE_BUTTON_A -> 0x8000
+        KeyEvent.KEYCODE_BUTTON_B -> 0x4000
+        KeyEvent.KEYCODE_BUTTON_L2 -> 0x2000
+        KeyEvent.KEYCODE_BUTTON_START -> 0x1000
+        KeyEvent.KEYCODE_DPAD_UP -> 0x0800
+        KeyEvent.KEYCODE_DPAD_DOWN -> 0x0400
+        KeyEvent.KEYCODE_DPAD_LEFT -> 0x0200
+        KeyEvent.KEYCODE_DPAD_RIGHT -> 0x0100
+        KeyEvent.KEYCODE_BUTTON_L1 -> 0x0020
+        KeyEvent.KEYCODE_BUTTON_R1 -> 0x0010
+        KeyEvent.KEYCODE_BUTTON_Y -> 0x0008
+        KeyEvent.KEYCODE_BUTTON_X -> 0x0004
+        KeyEvent.KEYCODE_BUTTON_SELECT -> 0x0002
+        KeyEvent.KEYCODE_BUTTON_R2 -> 0x0001
+        else -> 0
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0) {
+            val mask = n64ButtonFor(event.keyCode)
+            if (mask != 0) {
+                controllerButtons = if (event.action == KeyEvent.ACTION_DOWN) {
+                    controllerButtons or mask
+                } else {
+                    controllerButtons and mask.inv()
+                }
+                pushController()
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK &&
+            event.action == MotionEvent.ACTION_MOVE) {
+            fun axis(axis: Int): Float {
+                val range = event.device?.getMotionRange(axis, event.source)
+                val value = event.getAxisValue(axis)
+                return if (range != null && kotlin.math.abs(value) <= range.flat) 0f else value
+            }
+            controllerStickX = (axis(MotionEvent.AXIS_X).coerceIn(-1f, 1f) * 80f).toInt()
+            controllerStickY = (-axis(MotionEvent.AXIS_Y).coerceIn(-1f, 1f) * 80f).toInt()
+            pushController()
+            return true
+        }
+        return super.onGenericMotionEvent(event)
     }
 
     private fun openRomPicker() {
