@@ -13,6 +13,7 @@ add_library(mk64_android SHARED
     host_pi.cpp
     mk64_host_memory.cpp
     host_segments.cpp
+    host_message_queue.cpp
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
