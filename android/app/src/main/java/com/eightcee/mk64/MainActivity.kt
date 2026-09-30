@@ -46,6 +46,11 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         nativeInitPlatform()
 
         val root = FrameLayout(this)
+        val gameSurface = Mk64Surface(this)
+        root.addView(gameSurface, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
