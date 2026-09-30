@@ -9,6 +9,7 @@
 #include "host_input.h"
 #include "host_controller_adapter.h"
 #include "host_rom.h"
+#include "host_pi.h"
 #include <mutex>
 #include <string>
 
@@ -31,6 +32,7 @@ std::string g_romPath;
 std::string g_romIdentity = "none";
 Mk64HostClock g_hostClock{};
 Mk64RomImage g_romImage;
+Mk64HostPi g_hostPi(&g_romImage);
 
 uint64_t monotonic_now_ns() {
     return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -173,4 +175,14 @@ Java_com_eightcee_mk64_MainActivity_nativeControllerPacked(JNIEnv*, jobject) {
 extern "C" JNIEXPORT jint JNICALL
 Java_com_eightcee_mk64_MainActivity_nativeRomSize(JNIEnv*, jobject) {
     return static_cast<jint>(g_romImage.size());
+}
+
+
+extern "C" bool mk64_android_pi_read(uintptr_t romAddress, void* destination, size_t size) {
+    const bool ok = g_hostPi.dma_read(romAddress, destination, size);
+    if (!ok) {
+        MK64_LOGE("PI read failed: rom=0x%llx size=%zu",
+                  static_cast<unsigned long long>(romAddress), size);
+    }
+    return ok;
 }
