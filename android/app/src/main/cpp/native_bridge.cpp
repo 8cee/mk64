@@ -6,6 +6,7 @@
 #include <array>
 #include <chrono>
 #include "host_clock.h"
+#include "host_input.h"
 #include <mutex>
 #include <string>
 
@@ -138,4 +139,13 @@ Java_com_eightcee_mk64_MainActivity_nativeAdvanceFrame(JNIEnv*, jobject) {
 extern "C" JNIEXPORT void JNICALL
 Java_com_eightcee_mk64_MainActivity_nativeResumeClock(JNIEnv*, jobject) {
     mk64_host_clock_reset(&g_hostClock, monotonic_now_ns());
+}
+
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_eightcee_mk64_MainActivity_nativeSetController(JNIEnv*, jobject,
+                                                         jint buttons,
+                                                         jint stickX,
+                                                         jint stickY) {
+    mk64_input_set(static_cast<uint16_t>(buttons), stickX, stickY);
 }
