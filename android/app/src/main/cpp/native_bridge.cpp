@@ -7,6 +7,7 @@
 #include <chrono>
 #include "host_clock.h"
 #include "host_input.h"
+#include "host_controller_adapter.h"
 #include <mutex>
 #include <string>
 
@@ -148,4 +149,14 @@ Java_com_eightcee_mk64_MainActivity_nativeSetController(JNIEnv*, jobject,
                                                          jint stickX,
                                                          jint stickY) {
     mk64_input_set(static_cast<uint16_t>(buttons), stickX, stickY);
+}
+
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_eightcee_mk64_MainActivity_nativeControllerPacked(JNIEnv*, jobject) {
+    const Mk64PadSample pad = mk64_host_sample_pad();
+    // Diagnostic bridge: [buttons:16][stickX:8][stickY:8].
+    return static_cast<jint>((static_cast<uint32_t>(pad.button) << 16) |
+                             (static_cast<uint8_t>(pad.stick_x) << 8) |
+                             static_cast<uint8_t>(pad.stick_y));
 }
