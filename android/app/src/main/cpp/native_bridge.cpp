@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <fstream>
 #include <array>
+#include <chrono>
+#include "host_clock.h"
 #include <mutex>
 #include <string>
 
@@ -24,12 +26,19 @@ std::atomic<RuntimeStage> g_stage{RuntimeStage::Bootstrap};
 std::mutex g_runtimeMutex;
 std::string g_romPath;
 std::string g_romIdentity = "none";
+Mk64HostClock g_hostClock{};
+
+uint64_t monotonic_now_ns() {
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count());
+}
 
 // Host-side replacement boundary for libultra services.
 // MK64 game code will enter through a cooperative Android loop instead of
 // starting the original N64 idle/video/audio OS threads.
 bool platform_init() {
     MK64_LOGI("platform_init: Android ARM64 host services");
+    mk64_host_clock_reset(&g_hostClock, monotonic_now_ns());
     g_stage = RuntimeStage::PlatformReady;
     return true;
 }
@@ -113,4 +122,20 @@ Java_com_eightcee_mk64_MainActivity_nativeInitPlatform(JNIEnv*, jobject) {
         return JNI_FALSE;
     }
     return JNI_TRUE;
+}
+
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_eightcee_mk64_MainActivity_nativeAdvanceFrame(JNIEnv*, jobject) {
+    if (g_stage.load() < RuntimeStage::PlatformReady) return 0;
+    const unsigned ticks = mk64_host_clock_advance(&g_hostClock, monotonic_now_ns());
+    // Each ticket will call one MK64 authored simulation tick once the game
+    // bootstrap is linked. Keeping ticket generation live now lets Android
+    // lifecycle/input/render code be built without coupling it to libultra.
+    return static_cast<jint>(ticks);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_eightcee_mk64_MainActivity_nativeResumeClock(JNIEnv*, jobject) {
+    mk64_host_clock_reset(&g_hostClock, monotonic_now_ns());
 }
