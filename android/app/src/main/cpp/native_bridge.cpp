@@ -8,6 +8,7 @@
 #include "host_clock.h"
 #include "host_input.h"
 #include "host_controller_adapter.h"
+#include "host_rom.h"
 #include <mutex>
 #include <string>
 
@@ -29,6 +30,7 @@ std::mutex g_runtimeMutex;
 std::string g_romPath;
 std::string g_romIdentity = "none";
 Mk64HostClock g_hostClock{};
+Mk64RomImage g_romImage;
 
 uint64_t monotonic_now_ns() {
     return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -108,6 +110,12 @@ Java_com_eightcee_mk64_MainActivity_nativeSetRomPath(JNIEnv* env, jobject, jstri
     }
 
     std::lock_guard<std::mutex> lock(g_runtimeMutex);
+    std::string loadError;
+    if (!g_romImage.load(candidate, &loadError)) {
+        MK64_LOGE("ROM load: %s", loadError.c_str());
+        g_stage = RuntimeStage::Failed;
+        return JNI_FALSE;
+    }
     g_romIdentity = "Mario Kart 64 USA (NKTE)";
     g_romPath = std::move(candidate);
     g_stage = RuntimeStage::RomSelected;
@@ -159,4 +167,10 @@ Java_com_eightcee_mk64_MainActivity_nativeControllerPacked(JNIEnv*, jobject) {
     return static_cast<jint>((static_cast<uint32_t>(pad.button) << 16) |
                              (static_cast<uint8_t>(pad.stick_x) << 8) |
                              static_cast<uint8_t>(pad.stick_y));
+}
+
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_eightcee_mk64_MainActivity_nativeRomSize(JNIEnv*, jobject) {
+    return static_cast<jint>(g_romImage.size());
 }
