@@ -11,6 +11,7 @@
 #include "host_controller_adapter.h"
 #include "host_rom.h"
 #include "host_pi.h"
+#include "game_runtime.h"
 #include <mutex>
 #include <string>
 
@@ -142,9 +143,7 @@ extern "C" JNIEXPORT jint JNICALL
 Java_com_eightcee_mk64_MainActivity_nativeAdvanceFrame(JNIEnv*, jobject) {
     if (g_stage.load() < RuntimeStage::PlatformReady) return 0;
     const unsigned ticks = mk64_host_clock_advance(&g_hostClock, monotonic_now_ns());
-    // Each ticket will call one MK64 authored simulation tick once the game
-    // bootstrap is linked. Keeping ticket generation live now lets Android
-    // lifecycle/input/render code be built without coupling it to libultra.
+    mk64_game_runtime().run_ticks(ticks);
     return static_cast<jint>(ticks);
 }
 
@@ -212,7 +211,5 @@ Java_com_eightcee_mk64_Mk64Surface_nativeSurfaceChanged(JNIEnv*, jobject, jint w
 extern "C" JNIEXPORT void JNICALL
 Java_com_eightcee_mk64_Mk64Surface_nativeRenderFrame(JNIEnv*, jobject) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // F3DEX command execution is connected here as game display lists become
-    // available; keeping rendering on the GLSurfaceView GL thread avoids
-    // Android context ownership races.
+    mk64_game_runtime().render();
 }
