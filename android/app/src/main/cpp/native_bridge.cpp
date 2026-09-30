@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <fstream>
+#include <array>
 #include <mutex>
 #include <string>
 
@@ -22,6 +23,7 @@ enum class RuntimeStage : int {
 std::atomic<RuntimeStage> g_stage{RuntimeStage::Bootstrap};
 std::mutex g_runtimeMutex;
 std::string g_romPath;
+std::string g_romIdentity = "none";
 
 // Host-side replacement boundary for libultra services.
 // MK64 game code will enter through a cooperative Android loop instead of
@@ -76,10 +78,29 @@ Java_com_eightcee_mk64_MainActivity_nativeSetRomPath(JNIEnv* env, jobject, jstri
         return JNI_FALSE;
     }
 
+    // N64 internal header: game code at 0x3B..0x3E for native big-endian .z64.
+    // The Android port currently targets the US asset/config path (NKTE).
+    std::array<uint8_t, 0x40> n64Header{};
+    rom.clear();
+    rom.seekg(0);
+    rom.read(reinterpret_cast<char*>(n64Header.data()), n64Header.size());
+    auto byteAt = [&](size_t offset) -> uint8_t {
+        if (z64) return n64Header[offset];
+        if (v64) return n64Header[offset ^ 1];
+        return n64Header[(offset & ~3u) + (3u - (offset & 3u))];
+    };
+    std::string gameCode;
+    for (size_t i = 0x3B; i <= 0x3E; ++i) gameCode.push_back(static_cast<char>(byteAt(i)));
+    if (gameCode != "NKTE") {
+        MK64_LOGE("ROM validation: unsupported game code '%s' (expected NKTE / USA)", gameCode.c_str());
+        return JNI_FALSE;
+    }
+
     std::lock_guard<std::mutex> lock(g_runtimeMutex);
+    g_romIdentity = "Mario Kart 64 USA (NKTE)";
     g_romPath = std::move(candidate);
     g_stage = RuntimeStage::RomSelected;
-    MK64_LOGI("ROM validated: %lld bytes, order=%s", static_cast<long long>(size),
+    MK64_LOGI("ROM validated: %lld bytes, %s, order=%s", static_cast<long long>(size), g_romIdentity.c_str(),
               z64 ? "z64" : (v64 ? "v64" : "n64"));
     return JNI_TRUE;
 }
