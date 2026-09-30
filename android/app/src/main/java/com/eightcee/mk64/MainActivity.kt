@@ -8,6 +8,14 @@ import android.widget.FrameLayout
 import android.widget.TextView
 
 class MainActivity : Activity() {
+    companion object {
+        init {
+            System.loadLibrary("mk64_android")
+        }
+    }
+
+    private external fun nativeRuntimeVersion(): Int
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.insetsController?.let {
@@ -15,9 +23,10 @@ class MainActivity : Activity() {
             it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
+        val nativeVersion = nativeRuntimeVersion()
         val root = FrameLayout(this)
         val status = TextView(this).apply {
-            text = "MK64 Android\nNative runtime bring-up"
+            text = "MK64 Android\nNative runtime initialized (v$nativeVersion)"
             textSize = 22f
             setPadding(32, 32, 32, 32)
         }
