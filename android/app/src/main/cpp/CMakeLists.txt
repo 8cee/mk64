@@ -14,6 +14,7 @@ add_library(mk64_android SHARED
     mk64_host_memory.cpp
     host_segments.cpp
     host_message_queue.cpp
+    host_gfx_commands.cpp
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
