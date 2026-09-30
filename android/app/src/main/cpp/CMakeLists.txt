@@ -19,4 +19,5 @@ add_library(mk64_android SHARED
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
 find_library(log_lib log)
-target_link_libraries(mk64_android ${log_lib})
+find_library(gles2_lib GLESv2)
+target_link_libraries(mk64_android ${log_lib} ${gles2_lib})
