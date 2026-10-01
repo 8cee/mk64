@@ -7,6 +7,9 @@ import android.os.Bundle
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -29,176 +32,166 @@ class MainActivity : Activity() {
 
     private var nativeLoaded = false
     private var platformReady = false
+    private var gameReady = false
     private var controllerButtons = 0
     private var controllerStickX = 0
     private var controllerStickY = 0
     private lateinit var status: TextView
     private lateinit var root: FrameLayout
 
-    private val prefs by lazy { getSharedPreferences("mk64_startup_diag", MODE_PRIVATE) }
+    private val prefs by lazy { getSharedPreferences("mk64_state", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        hideSystemUi()
 
+        if (!loadNativeRuntime()) {
+            showFatal("MK64 could not start.")
+            return
+        }
+
+        val rememberedRom = File(filesDir, "rom/mk64.z64")
+        if (rememberedRom.isFile && rememberedRom.length() >= 8L * 1024L * 1024L) {
+            showLauncher("Starting Mario Kart 64…", false)
+            bootRom(rememberedRom)
+        } else {
+            showLauncher("Choose your Mario Kart 64 (USA) ROM to start.", true)
+        }
+    }
+
+    private fun hideSystemUi() {
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_FULLSCREEN
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            window.insetsController?.let {
+                it.hide(WindowInsets.Type.systemBars())
+                it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemUi()
+    }
+
+    private fun mark(stage: String) {
+        prefs.edit().putString("last_stage", stage).apply()
+    }
+
+    private fun loadNativeRuntime(): Boolean {
+        return try {
+            mark("load_library")
+            System.loadLibrary("mk64_android")
+            nativeLoaded = true
+
+            mark("platform_init")
+            platformReady = nativeInitPlatform()
+            platformReady
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private fun showLauncher(message: String, allowSelect: Boolean) {
         root = FrameLayout(this)
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
+            setPadding(48, 48, 48, 48)
         }
-
-        val previousStage = prefs.getString("stage", "fresh launch") ?: "fresh launch"
 
         status = TextView(this).apply {
-            text = "MK64 Android diagnostic boot\n\nAndroid shell started successfully.\nLast startup checkpoint: $previousStage"
-            textSize = 20f
-            setTextIsSelectable(true)
+            text = "Mario Kart 64\n\n$message"
+            textSize = 22f
         }
-
-        val loadNative = Button(this).apply {
-            text = "Load MK64 native runtime"
-            setOnClickListener {
-                isEnabled = false
-                loadNativeRuntime()
-                isEnabled = true
-            }
-        }
-
         panel.addView(status)
-        panel.addView(loadNative)
+
+        if (allowSelect) {
+            panel.addView(Button(this).apply {
+                text = "Select ROM"
+                setOnClickListener { openRomPicker() }
+            })
+        }
+
         root.addView(panel)
         setContentView(root)
-
-        checkpoint("android_shell_ready")
     }
 
-    private fun checkpoint(stage: String) {
-        prefs.edit().putString("stage", stage).commit()
-    }
-
-    private fun appendStatus(line: String) {
-        status.text = status.text.toString() + "\n" + line
-    }
-
-    private fun loadNativeRuntime() {
-        if (nativeLoaded && platformReady) {
-            appendStatus("Native runtime already loaded.")
-            startGameUi()
-            return
-        }
-
-        checkpoint("before_System.loadLibrary")
-        appendStatus("1/4 Loading libmk64_android.so ...")
+    private fun bootRom(target: File) {
         try {
-            System.loadLibrary("mk64_android")
-            nativeLoaded = true
-            checkpoint("after_System.loadLibrary")
-            appendStatus("   OK")
-        } catch (t: Throwable) {
-            checkpoint("System.loadLibrary_threw_" + t.javaClass.simpleName)
-            appendStatus("   FAILED: ${t.javaClass.name}: ${t.message}")
-            return
-        }
-
-        checkpoint("before_nativeRuntimeVersion")
-        appendStatus("2/4 Calling JNI runtime version ...")
-        try {
-            val version = nativeRuntimeVersion()
-            checkpoint("after_nativeRuntimeVersion")
-            appendStatus("   OK, runtime v$version")
-        } catch (t: Throwable) {
-            checkpoint("nativeRuntimeVersion_threw_" + t.javaClass.simpleName)
-            appendStatus("   FAILED: ${t.javaClass.name}: ${t.message}")
-            return
-        }
-
-        checkpoint("before_nativeInitPlatform")
-        appendStatus("3/4 Initializing host platform ...")
-        try {
-            platformReady = nativeInitPlatform()
-            if (!platformReady) {
-                checkpoint("nativeInitPlatform_returned_false")
-                appendStatus("   FAILED: nativeInitPlatform returned false")
+            mark("rom_validate")
+            if (!nativeSetRomPath(target.absolutePath)) {
+                showLauncher("That ROM is not the supported Mario Kart 64 USA image.", true)
                 return
             }
-            checkpoint("after_nativeInitPlatform")
-            appendStatus("   OK, stage ${nativeRuntimeStage()}")
-        } catch (t: Throwable) {
-            checkpoint("nativeInitPlatform_threw_" + t.javaClass.simpleName)
-            appendStatus("   FAILED: ${t.javaClass.name}: ${t.message}")
-            return
-        }
 
-        checkpoint("before_game_ui")
-        appendStatus("4/4 Creating renderer/game UI ...")
-        startGameUi()
+            mark("asset_load")
+            if (!nativeLoadAssets()) {
+                showLauncher("Could not prepare Mario Kart 64 game data.", true)
+                return
+            }
+
+            mark("game_init")
+            if (!nativeInitGame()) {
+                showLauncher("Mario Kart 64 initialization failed.", true)
+                return
+            }
+
+            gameReady = true
+            mark("game_ready")
+            startGameUi()
+        } catch (_: Throwable) {
+            showLauncher("Mario Kart 64 could not start with this ROM.", true)
+        }
     }
 
     private fun startGameUi() {
-        try {
-            val gameRoot = FrameLayout(this)
-            val gameSurface = Mk64Surface(this)
-            gameRoot.addView(
-                gameSurface,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                )
+        val gameRoot = FrameLayout(this)
+        val gameSurface = Mk64Surface(this)
+        gameRoot.addView(
+            gameSurface,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
             )
+        )
 
-            val panel = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(32, 32, 32, 32)
-            }
-
-            status = TextView(this).apply {
-                text = "MK64 Android\nNative runtime v${nativeRuntimeVersion()} · stage ${nativeRuntimeStage()}"
-                textSize = 22f
-            }
-
-            val selectRom = Button(this).apply {
-                text = "Select Mario Kart 64 ROM"
-                setOnClickListener { openRomPicker() }
-            }
-
-            panel.addView(status)
-            panel.addView(selectRom)
-            gameRoot.addView(panel)
-
-            val touchControls = TouchControlsView(this) { buttons, x, y ->
-                controllerButtons = buttons
-                controllerStickX = x
-                controllerStickY = y
-                pushController()
-            }
-            gameRoot.addView(
-                touchControls,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                )
-            )
-            panel.bringToFront()
-
-            root = gameRoot
-            setContentView(root)
-            checkpoint("game_ui_ready")
-        } catch (t: Throwable) {
-            checkpoint("game_ui_threw_" + t.javaClass.simpleName)
-            showDiagnosticFailure("Renderer/game UI setup failed", t)
+        val touchControls = TouchControlsView(this) { buttons, x, y ->
+            controllerButtons = buttons
+            controllerStickX = x
+            controllerStickY = y
+            pushController()
         }
+        gameRoot.addView(
+            touchControls,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        root = gameRoot
+        setContentView(root)
+        hideSystemUi()
     }
 
-    private fun showDiagnosticFailure(title: String, t: Throwable) {
+    private fun showFatal(message: String) {
         setContentView(TextView(this).apply {
-            text = "$title\n\n${t.javaClass.name}: ${t.message}\n\nLast checkpoint: ${prefs.getString("stage", "unknown")}"
-            textSize = 18f
-            setPadding(32, 32, 32, 32)
-            setTextIsSelectable(true)
+            text = message
+            textSize = 20f
+            setPadding(48, 48, 48, 48)
         })
     }
 
     override fun onResume() {
         super.onResume()
+        hideSystemUi()
         if (nativeLoaded && platformReady) {
             try { nativeResumeClock() } catch (_: Throwable) {}
         }
@@ -206,7 +199,10 @@ class MainActivity : Activity() {
 
     private fun pushController() {
         if (nativeLoaded && platformReady) {
-            try { nativeSetController(controllerButtons, controllerStickX, controllerStickY) } catch (_: Throwable) {}
+            try {
+                nativeSetController(controllerButtons, controllerStickX, controllerStickY)
+            } catch (_: Throwable) {
+            }
         }
     }
 
@@ -267,109 +263,53 @@ class MainActivity : Activity() {
     private fun openRomPicker() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = "application/octet-stream"
-            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/octet-stream", "application/x-n64-rom", "*/*"))
+            type = "*/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/octet-stream", "application/x-n64-rom"))
         }
         startActivityForResult(intent, ROM_PICKER_REQUEST)
     }
 
-    @Deprecated("Deprecated in Android API; kept for the simple document-picker bridge.")
+    @Deprecated("Kept for the Android document picker bridge.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != ROM_PICKER_REQUEST || resultCode != RESULT_OK) return
         val uri = data?.data ?: return
-        try {
-            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } catch (_: SecurityException) {
-        }
         importRom(uri)
     }
 
     private fun importRom(uri: Uri) {
         val romDir = File(filesDir, "rom").apply { mkdirs() }
         val target = File(romDir, "mk64.z64")
+        val temp = File(romDir, "mk64.z64.tmp")
+
         try {
             contentResolver.openInputStream(uri)?.use { input ->
-                target.outputStream().use { output -> input.copyTo(output) }
+                temp.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > 64L * 1024L * 1024L) {
+                            error("ROM is too large")
+                        }
+                        output.write(buffer, 0, read)
+                    }
+                }
             } ?: error("Unable to open selected ROM")
-            checkpoint("before_nativeSetRomPath")
-            val accepted = nativeSetRomPath(target.absolutePath)
-            checkpoint(if (accepted) "after_nativeSetRomPath_ok" else "after_nativeSetRomPath_failed")
-            if (accepted) {
-                showPostRomDiagnostics(target)
-            } else {
-                status.text = "ROM import failed in native runtime"
-            }
-        } catch (t: Throwable) {
-            checkpoint("importRom_threw_" + t.javaClass.simpleName)
-            status.text = "ROM import failed: ${t.javaClass.name}: ${t.message}"
-        }
-    }
 
-    private fun showPostRomDiagnostics(target: File) {
-        val gameRoot = FrameLayout(this)
-        val panel = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 32, 32, 32)
-        }
-        status = TextView(this).apply {
-            text = "ROM loaded successfully\n${target.name} · ${target.length()} bytes\nStage ${nativeRuntimeStage()}\n\nNext: test asset reconstruction."
-            textSize = 20f
-            setTextIsSelectable(true)
-        }
-        val assetsButton = Button(this).apply {
-            text = "Build ROM assets"
-            setOnClickListener {
-                checkpoint("before_nativeLoadAssets")
-                isEnabled = false
-                try {
-                    val ok = nativeLoadAssets()
-                    checkpoint(if (ok) "after_nativeLoadAssets_ok" else "after_nativeLoadAssets_failed")
-                    if (!ok) {
-                        appendStatus("Asset reconstruction returned failure.")
-                        isEnabled = true
-                        return@setOnClickListener
-                    }
-                    appendStatus("Asset reconstruction OK.")
-                    addGameInitButton(panel)
-                } catch (t: Throwable) {
-                    checkpoint("nativeLoadAssets_threw_" + t.javaClass.simpleName)
-                    appendStatus("Asset reconstruction threw: ${t.javaClass.name}: ${t.message}")
-                    isEnabled = true
-                }
+            if (target.exists()) target.delete()
+            if (!temp.renameTo(target)) {
+                temp.copyTo(target, overwrite = true)
+                temp.delete()
             }
-        }
-        panel.addView(status)
-        panel.addView(assetsButton)
-        gameRoot.addView(panel)
-        root = gameRoot
-        setContentView(root)
-    }
 
-    private fun addGameInitButton(panel: LinearLayout) {
-        val initButton = Button(this).apply {
-            text = "Initialize MK64 game"
-            setOnClickListener {
-                checkpoint("before_nativeInitGame")
-                isEnabled = false
-                try {
-                    val ok = nativeInitGame()
-                    checkpoint(if (ok) "after_nativeInitGame_ok" else "after_nativeInitGame_failed")
-                    if (!ok) {
-                        appendStatus("Game initialization returned failure.")
-                        isEnabled = true
-                        return@setOnClickListener
-                    }
-                    appendStatus("Game initialization OK. Starting renderer...")
-                    checkpoint("before_final_game_ui")
-                    startGameUi()
-                } catch (t: Throwable) {
-                    checkpoint("nativeInitGame_threw_" + t.javaClass.simpleName)
-                    appendStatus("Game initialization threw: ${t.javaClass.name}: ${t.message}")
-                    isEnabled = true
-                }
-            }
+            showLauncher("Starting Mario Kart 64…", false)
+            bootRom(target)
+        } catch (_: Throwable) {
+            temp.delete()
+            showLauncher("Could not import the selected ROM.", true)
         }
-        panel.addView(initButton)
     }
 }
