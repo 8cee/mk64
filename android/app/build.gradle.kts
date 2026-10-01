@@ -21,7 +21,10 @@ android {
         versionName = "0.1.0"
 
         ndk {
-            abiFilters += listOf("armeabi-v7a")
+            // Ship both modern 64-bit ARM and legacy 32-bit ARM.
+            // Some newer Android devices are 64-bit-only and reject an
+            // armeabi-v7a-only APK during installation.
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
 
         externalNativeBuild {
