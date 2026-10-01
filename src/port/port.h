@@ -44,9 +44,17 @@ void port_clear_segment_table(s32 segment);
 void* port_seg_to_ptr(uintptr_t addr);
 /** Real pointers pass straight through, everything else is treated as segmented. */
 static inline int port_is_real_ptr(uintptr_t addr) {
+#ifdef TARGET_ANDROID
+    /* Full LP64 addresses are real. Tagged 0x7Fxxxxxx values are asset tokens
+     * and must go through port_seg_to_ptr(). */
+    if (addr > UINT32_MAX) return 1;
+    if ((addr & 0xFF000000u) == 0x7F000000u) return 0;
+    return 0;
+#else
     // PSP user memory starts at 0x08800000; MK64 only forms segments 0..0xF with
     // small offsets, so anything above the segment window is a real pointer.
     return addr >= 0x08800000u || addr < 0x00010000u ? (addr >= 0x08800000u) : 0;
+#endif
 }
 
 /* Memory pool the game allocates course/texture data from (replaces the N64's
