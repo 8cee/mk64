@@ -137,14 +137,13 @@ class MainActivity : Activity() {
                 return
             }
 
-            mark("game_init")
-            if (!nativeInitGame()) {
-                showLauncher("Mario Kart 64 initialization failed.", true)
-                return
-            }
-
-            gameReady = true
-            mark("game_ready")
+            /*
+             * Do not initialize the MK64 renderer here. This method runs on the
+             * Android UI thread before GLSurfaceView owns a current EGL context.
+             * The game/renderer is initialized from Mk64Surface.onSurfaceCreated()
+             * on the GL thread instead.
+             */
+            mark("surface_pending")
             startGameUi()
         } catch (_: Throwable) {
             showLauncher("Mario Kart 64 could not start with this ROM.", true)
