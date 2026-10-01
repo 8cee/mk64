@@ -147,8 +147,17 @@ extern "C" bool mk64_android_load_assets() {
             continue;
         }
         if(off+4u>regionSize || relocs[i].target>=regionSize) return false;
-        uintptr_t v=reinterpret_cast<uintptr_t>(__assets_start+relocs[i].target);
-        *reinterpret_cast<uint32_t*>(__assets_start+off)=static_cast<uint32_t>(v);
+        /*
+         * Keep the 4-byte N64/PSP slot width on LP64 Android. Never truncate a
+         * 64-bit host pointer here: store a tagged asset-relative token instead.
+         * port_seg_to_ptr() expands 0x7Fxxxxxx back into __assets_start + off.
+         */
+        if (relocs[i].target >= 0x01000000u) {
+            ALOGE("asset relocation target too large for token: %08x", relocs[i].target);
+            return false;
+        }
+        const uint32_t token = 0x7F000000u | relocs[i].target;
+        *reinterpret_cast<uint32_t*>(__assets_start+off)=token;
     }
 
     ALOGI("loaded %u recipes, %u relocs, %u courses",h->recipe_count,h->reloc_count,h->course_count);
