@@ -150,8 +150,8 @@ void osWritebackDCache(UNUSED void* a, UNUSED size_t b) {
 }
 void osWritebackDCacheAll(void) {
 }
-u32 osVirtualToPhysical(void* addr) {
-    return (u32) (uintptr_t) addr;
+uintptr_t osVirtualToPhysical(void* addr) {
+    return (uintptr_t) addr;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -161,8 +161,8 @@ u32 osVirtualToPhysical(void* addr) {
 void osCreatePiManager(UNUSED OSPri pri, UNUSED OSMesgQueue* cmdQ, UNUSED OSMesg* cmdBuf, UNUSED s32 cmdMsgCnt) {
 }
 
-s32 osPiStartDma(UNUSED OSIoMesg* mb, UNUSED s32 priority, UNUSED s32 direction, u32 devAddr, void* vAddr,
-                 u32 nbytes, OSMesgQueue* mq) {
+s32 osPiStartDma(UNUSED OSIoMesg* mb, UNUSED s32 priority, UNUSED s32 direction, uintptr_t devAddr, void* vAddr,
+                 size_t nbytes, OSMesgQueue* mq) {
     if (nbytes != 0) {
         memcpy(vAddr, (const void*) devAddr, nbytes);
     }
@@ -216,21 +216,17 @@ OSYieldResult osSpTaskYielded(UNUSED OSTask* task) {
 /* AI                                                                         */
 /* ------------------------------------------------------------------------- */
 
+#if PORT_ENABLE_AUDIO
 extern void port_audio_out_push(const s16* samples, u32 bytes);
 extern u32 port_audio_out_queued_bytes(void);
-
-s32 osAiSetFrequency(u32 freq) {
-    extern void port_audio_out_set_rate(u32 freq);
-    port_audio_out_set_rate(freq); // the output stage resamples to the PSP rate
-    return (s32) freq;
-}
-s32 osAiSetNextBuffer(void* buf, u32 size) {
-    port_audio_out_push((const s16*) buf, size);
-    return 0;
-}
-u32 osAiGetLength(void) {
-    return port_audio_out_queued_bytes();
-}
+s32 osAiSetFrequency(u32 freq) { extern void port_audio_out_set_rate(u32 freq); port_audio_out_set_rate(freq); return (s32) freq; }
+s32 osAiSetNextBuffer(void* buf, u32 size) { port_audio_out_push((const s16*) buf, size); return 0; }
+u32 osAiGetLength(void) { return port_audio_out_queued_bytes(); }
+#else
+s32 osAiSetFrequency(u32 freq) { return (s32) freq; }
+s32 osAiSetNextBuffer(UNUSED void* buf, UNUSED u32 size) { return 0; }
+u32 osAiGetLength(void) { return 0; }
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* Controllers                                                                */
