@@ -58,12 +58,12 @@ def derive_common_aliases(rows):
             continue
         if in_tables:
             if indent == 4:
-                m = re.match(r"([A-Za-z_0-9]+):\\s*$", stripped)
+                m = re.match(r"([A-Za-z_0-9]+):\s*$", stripped)
                 if m:
                     current_table = m.group(1)
                     continue
             if indent == 6 and current_table:
-                m = re.match(r"range:\\s*\\[\\s*(0x[0-9A-Fa-f]+)\\s*,\\s*(0x[0-9A-Fa-f]+)", stripped)
+                m = re.match(r"range:\s*\[\s*(0x[0-9A-Fa-f]+)\s*,\s*(0x[0-9A-Fa-f]+)", stripped)
                 if m:
                     tables[current_table] = (int(m.group(1), 16), int(m.group(2), 16))
                     continue
@@ -71,10 +71,10 @@ def derive_common_aliases(rows):
                 in_tables = False
         if not in_tables:
             if indent == 0:
-                m = re.match(r"([A-Za-z_0-9]+):\\s*$", stripped)
+                m = re.match(r"([A-Za-z_0-9]+):\s*$", stripped)
                 current_symbol = m.group(1) if m else None
             elif indent == 2 and current_symbol:
-                m = re.match(r"offset:\\s*(0x[0-9A-Fa-f]+)", stripped)
+                m = re.match(r"offset:\s*(0x[0-9A-Fa-f]+)", stripped)
                 if m:
                     symbols.append((current_symbol, int(m.group(1), 16)))
     out = []
