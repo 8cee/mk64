@@ -23,6 +23,7 @@ add_library(mk64_android SHARED
     portable/decoders.c
     portable/tkmk00_port.c
     controller_android.cpp
+    android_port_services.cpp
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
