@@ -140,6 +140,14 @@ for yp in sorted(yaml_root.glob("*.yml")):
     for name, off in direct:
         row_map.setdefault(name, base + off)
 
+# Known common-data texture frames whose YAML keys carry inline comments.
+if "common_tlut_finish_line_banner" in row_map:
+    common_base = row_map["common_tlut_finish_line_banner"]
+    row_map.setdefault("common_texture_bomb_1", common_base + 0x29858)
+    row_map.setdefault("common_texture_bomb_2", common_base + 0x29C58)
+    row_map.setdefault("common_texture_bomb_3", common_base + 0x2A058)
+    row_map.setdefault("common_texture_bomb_4", common_base + 0x2A458)
+
 rows = sorted(row_map.items(), key=lambda x: (x[1], x[0]))
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
