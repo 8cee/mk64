@@ -121,6 +121,7 @@ extern Gfx D_0D006A40[];
 extern u8 common_shadow_i4[];
 extern u8 D_0D006AD8[];
 extern u16 common_tlut_debug_font[];
+extern u16 common_tlut_lakitu_countdown[];
 extern u16 common_texture_debug_font[];
 extern Gfx D_0D0076F8[];
 extern Gfx D_0D007780[];
