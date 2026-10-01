@@ -36,6 +36,12 @@
 #include "spawn_players.h"
 #include "sounds.h"
 #include "data/some_data.h"
+#ifdef TARGET_PSP
+#include "port/port.h"
+#ifdef PORT_NET
+#include "port/net/port_net.h"
+#endif
+#endif
 
 //! @warning this macro is undef'd at the end of this file
 #define MAKE_RGB(r, g, b) (((r) << 0x10) | ((g) << 0x08) | (b << 0x00))
@@ -884,6 +890,9 @@ void func_80058C20(u32 arg0) {
 void render_hud(u32 arg0) {
 
     D_8018D21C = arg0;
+#ifdef TARGET_PSP
+    gDPNoOpTag(gDisplayListHead++, PORT_HUD_TAG_ON);
+#endif
     gSPDisplayList(gDisplayListHead++, &D_0D0076F8);
     if (D_8018D22C == 0) {
         switch (arg0) {
@@ -1000,6 +1009,17 @@ void func_8005902C(void) {
 void func_800590D4(void) {
     if (D_8018D2A4 != 0) {
         if (gModeSelection != BATTLE) {
+#ifdef PORT_NET
+            if (port_net_active()) {
+                // ad hoc: this screen shows one player; only that player's rank
+                if (gPlayerCountSelection1 <= 2) {
+                    func_8004E800(port_net_local_slot());
+                } else {
+                    func_8004E998(port_net_local_slot());
+                }
+                return;
+            }
+#endif
             switch (gPlayerCountSelection1) {
                 case 1:
                     if (gModeSelection != TIME_TRIALS) {
@@ -1039,6 +1059,19 @@ void func_800591B4(void) {
                     func_800514BC();
                 }
                 if ((!gDemoMode) && (D_801657E8 != false)) {
+#ifdef PORT_NET
+                    if (port_net_active()) {
+                        // ad hoc: this screen's player only
+                        s32 slot = port_net_local_slot();
+                        if (D_80165800[slot] != 0) {
+                            func_8004EE54(slot);
+                            if (gModeSelection != BATTLE) {
+                                render_mini_map_finish_line(slot);
+                            }
+                            func_8004F3E4(slot);
+                        }
+                    } else
+#endif
                     if (D_80165800[0] != 0) {
                         func_8004EE54(0);
                         if (gModeSelection != BATTLE) {
@@ -1046,7 +1079,11 @@ void func_800591B4(void) {
                         }
                         func_8004F3E4(0);
                     }
-                    if ((gScreenModeSelection == SCREEN_MODE_2P_SPLITSCREEN_HORIZONTAL) && (D_80165800[1] != 0)) {
+                    if (
+#ifdef PORT_NET
+                        !port_net_active() &&
+#endif
+                        (gScreenModeSelection == SCREEN_MODE_2P_SPLITSCREEN_HORIZONTAL) && (D_80165800[1] != 0)) {
                         func_8004EE54(1);
                         if (gModeSelection != BATTLE) {
                             render_mini_map_finish_line(1);
@@ -1064,6 +1101,9 @@ void func_800591B4(void) {
         func_80057DD0();
         func_80057CE4();
     }
+#ifdef TARGET_PSP
+    gDPNoOpTag(gDisplayListHead++, PORT_HUD_TAG_OFF);
+#endif
 }
 
 void func_80059358(void) {
@@ -1413,7 +1453,11 @@ void func_8005A070(void) {
     gMatrixHudCount = 0;
     D_801655C0 = 0;
     func_80041D34();
+#ifdef TARGET_PSP
+    if (gIsGamePaused == false && gPortHalfFrame != 1) { /* port.h: a split frame updates in its second half */
+#else
     if (gIsGamePaused == false) {
+#endif
         func_8005C728();
         if (gGamestate == ENDING) {
             func_80086604();
@@ -2513,7 +2557,8 @@ void func_8005C728(void) {
 
 void func_8005C980(void) {
     s32 var_v0;
-    s32 sp0;
+    s32 sp0 = 0; /* port: was read uninitialized in the first loop -- different stack
+                    garbage on each PSP diverged a lockstep race.  0 is deterministic. */
     s32 temp_v1;
     for (var_v0 = 0; var_v0 < NUM_PLAYERS; var_v0++) {
         temp_v1 = gGPCurrentRaceRankByPlayerId[var_v0];
