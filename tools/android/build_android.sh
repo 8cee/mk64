@@ -12,6 +12,7 @@ if [[ ! -f "$SDL_JAVA_DIR/SDLActivity.java" ]]; then
   cp "$TMP/SDL2-${SDL_VERSION}/android-project/app/src/main/java/org/libsdl/app/"*.java "$SDL_JAVA_DIR/"
 fi
 python3 "$ROOT/tools/android/gen_asset_symbols.py"
+python3 "$ROOT/tools/android/gen_course_metadata.py"
 gradle -p "$ROOT/android" --no-daemon :app:assembleDebug
 APK="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
 test -f "$APK"
