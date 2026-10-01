@@ -661,7 +661,7 @@ void game_init_clear_framebuffer(void) {
     clear_framebuffer(0);
 }
 
-#ifdef TARGET_PSP
+#if defined(TARGET_PSP) || defined(TARGET_ANDROID)
 /* Where a split-frame picture's time goes outside the display-list interpreter
  * (max_fps_experiments; the ~5.5 ms block the data/exp runs could not look
  * into).  PORT_PROFILE builds add up each segment per half and log the averages
@@ -699,7 +699,7 @@ void race_logic_loop(void) {
 
     gMatrixObjectCount = 0;
     gMatrixEffectCount = 0;
-#ifdef TARGET_PSP
+#if defined(TARGET_PSP) || defined(TARGET_ANDROID)
     /* A split frame (port.h, gPortHalfFrame): its second half picks up after
      * tick 1 -- whatever that tick did (pause, quit) takes effect next frame,
      * as it would have. */
@@ -722,14 +722,14 @@ void race_logic_loop(void) {
         sNumVBlanks = 1;
     }
     func_802A4EF4();
-#ifdef TARGET_PSP
+#if defined(TARGET_PSP) || defined(TARGET_ANDROID)
 port_second_half:
 #endif
 
     switch (gActiveScreenMode) {
         case SCREEN_MODE_1P:
             gTickSpeed = 2;
-#ifdef TARGET_PSP
+#if defined(TARGET_PSP) || defined(TARGET_ANDROID)
             if (gPortHalfFrame != 0) {
                 /* the 1P frame below, one tick per picture */
                 sSegPics[gPortHalfFrame - 1]++;
@@ -1047,16 +1047,16 @@ port_second_half:
             }
         }
     }
-#ifdef TARGET_PSP
+#if defined(TARGET_PSP) || defined(TARGET_ANDROID)
     SEG_START();
 #endif
     func_802A4300();
     func_800591B4();
-#ifdef TARGET_PSP
+#if defined(TARGET_PSP) || defined(TARGET_ANDROID)
     SEG_END(SEG_HUD);
 #endif
     func_80093E20();
-#ifdef TARGET_PSP
+#if defined(TARGET_PSP) || defined(TARGET_ANDROID)
     SEG_END(SEG_MENUITEMS);
 #endif
 #if DVDL
