@@ -17,6 +17,7 @@ python3 "$ROOT/tools/android/gen_course_metadata.py"
 RECIPE_TMP="$(mktemp -d)"
 curl -fsSL "https://github.com/beckerd/psp_mk64_portable/releases/download/v1.7/MK64Portable-1.7.zip" -o "$RECIPE_TMP/portable.zip"
 python3 "$ROOT/tools/android/extract_psp_recipe.py" "$RECIPE_TMP/portable.zip" -o "$RECIPE_TMP/recipes.bin"
+python3 "$ROOT/tools/android/embed_recipe_blob.py" "$RECIPE_TMP/recipes.bin" "$ROOT/android/app/src/main/cpp/android_recipe_blob.c"
 rm -rf "$RECIPE_TMP"
 python3 "$ROOT/tools/android/gen_seg_tables.py"
 gradle -p "$ROOT/android" --no-daemon :app:assembleDebug
