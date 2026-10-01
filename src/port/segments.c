@@ -128,9 +128,32 @@ void* port_seg_to_ptr(uintptr_t addr) {
     u32 offset;
     const PortSegTable* table;
 
+#ifdef TARGET_ANDROID
+    /*
+     * Android is LP64, but many ROM-derived MK64 data structures keep 4-byte
+     * pointer slots. Android asset reconstruction stores those as tagged
+     * 0x7Fxxxxxx tokens, never as truncated host pointers. Expand them here.
+     */
+    if (addr > UINT32_MAX) {
+        return (void*) addr; // full 64-bit host pointer
+    }
+    if ((addr & 0xFF000000u) == 0x7F000000u) {
+        extern unsigned char __assets_start[];
+        extern unsigned char __assets_end[];
+        u32 assetOffset = (u32)(addr & 0x00FFFFFFu);
+        size_t assetSize = (size_t)(__assets_end - __assets_start);
+        if ((size_t)assetOffset < assetSize) {
+            return (void*)(__assets_start + assetOffset);
+        }
+        PORT_LOG("asset token out of range: %08X (size %u)\n",
+                 (unsigned)addr, (unsigned)assetSize);
+        return NULL;
+    }
+#else
     if (addr >= 0x08800000u) {
         return (void*) addr; // already a PSP pointer
     }
+#endif
     segment = addr >> 24;
     offset = addr & 0x00FFFFFF;
     if (segment >= 16) {
