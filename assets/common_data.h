@@ -7,6 +7,8 @@
 
 extern u16 common_tlut_finish_line_banner[];
 extern u16 common_texture_particle_fire[];
+extern u16 common_texture_particle_smoke[];
+extern u16 common_texture_particle_spark[];
 extern Vtx D_0D001200[];
 extern Vtx D_0D001210[];
 extern Vtx D_0D001240[];
