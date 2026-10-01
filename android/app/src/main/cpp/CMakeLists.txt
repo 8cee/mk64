@@ -15,8 +15,10 @@ add_library(mk64_android SHARED
     host_segments.cpp
     host_message_queue.cpp
     host_gfx_commands.cpp
+    android_gfx_window.cpp
+    portable/gfx/gfx_pc_android.c
+    portable/gfx/gfx_gles2.c
     game_runtime.cpp
-    android_gfx_api.cpp
     portable/ultra_shim.c
     ../../../../../src/port/segments.c
     ../../../../../src/port/decoders.c
