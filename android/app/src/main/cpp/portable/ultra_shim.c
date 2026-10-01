@@ -17,8 +17,13 @@
 #include "net/port_net.h"
 #endif
 
-#include <pspkernel.h>
-#include <psprtc.h>
+#include <time.h>
+
+static u64 android_time_us(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (u64) ts.tv_sec * 1000000ULL + (u64) ts.tv_nsec / 1000ULL;
+}
 
 /* ------------------------------------------------------------------------- */
 /* Globals libultra normally provides                                          */
@@ -68,17 +73,17 @@ OSThread* __osGetCurrFaultedThread(void) {
 static u64 sTimeBase;
 
 OSTime osGetTime(void) {
-    u64 now = sceKernelGetSystemTimeWide(); // microseconds
+    u64 now = android_time_us(); // microseconds
     return (OSTime) ((now - sTimeBase) * 62.5);
 }
 
 void osSetTime(OSTime time) {
-    sTimeBase = sceKernelGetSystemTimeWide() - (u64) (time / 62.5);
+    sTimeBase = android_time_us() - (u64) (time / 62.5);
 }
 
 u32 osGetCount(void) {
     // 46.875 MHz on the N64; system clock is 1 MHz, scale to keep ratios sane.
-    return (u32) (sceKernelGetSystemTimeWide() * 46);
+    return (u32) (android_time_us() * 46);
 }
 
 u32 osSetTimer(UNUSED OSTimer* timer, UNUSED OSTime countdown, UNUSED OSTime interval, UNUSED OSMesgQueue* mq,
@@ -145,8 +150,8 @@ void osWritebackDCache(UNUSED void* a, UNUSED size_t b) {
 }
 void osWritebackDCacheAll(void) {
 }
-uintptr_t osVirtualToPhysical(void* addr) {
-    return (uintptr_t) addr;
+u32 osVirtualToPhysical(void* addr) {
+    return (u32) (uintptr_t) addr;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -156,8 +161,8 @@ uintptr_t osVirtualToPhysical(void* addr) {
 void osCreatePiManager(UNUSED OSPri pri, UNUSED OSMesgQueue* cmdQ, UNUSED OSMesg* cmdBuf, UNUSED s32 cmdMsgCnt) {
 }
 
-s32 osPiStartDma(UNUSED OSIoMesg* mb, UNUSED s32 priority, UNUSED s32 direction, uintptr_t devAddr, void* vAddr,
-                 size_t nbytes, OSMesgQueue* mq) {
+s32 osPiStartDma(UNUSED OSIoMesg* mb, UNUSED s32 priority, UNUSED s32 direction, u32 devAddr, void* vAddr,
+                 u32 nbytes, OSMesgQueue* mq) {
     if (nbytes != 0) {
         memcpy(vAddr, (const void*) devAddr, nbytes);
     }
