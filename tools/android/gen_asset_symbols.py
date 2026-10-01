@@ -90,6 +90,54 @@ def derive_common_aliases(rows):
 rows.extend(derive_common_aliases(rows))
 rows = sorted(set(rows))
 
+
+# Expand the portable symbol map with direct symbols described by the US YAMLs.
+# For each YAML segment, infer its base inside __assets_start from symbols that
+# already exist in the portable map, then add the remaining symbol+offset pairs.
+row_map = {name: off for name, off in rows}
+yaml_root = ROOT / "yamls" / "us"
+for yp in sorted(yaml_root.glob("*.yml")):
+    text = yp.read_text().splitlines()
+    direct = []
+    current_name = None
+    current_symbol = None
+    current_offset = None
+    def flush():
+        nonlocal_vars = None
+    # top-level asset blocks only; nested recipe/range blocks are ignored
+    for line in text + ["__END__:"]:
+        if line and not line.startswith((" ", "\t")) and line.rstrip().endswith(":"):
+            if current_symbol is not None and current_offset is not None:
+                direct.append((current_symbol, current_offset))
+            current_name = line.split(":", 1)[0].strip()
+            current_symbol = None
+            current_offset = None
+            continue
+        s = line.strip()
+        if current_name is None:
+            continue
+        if s.startswith("symbol:"):
+            current_symbol = s.split(":", 1)[1].strip().strip('"')
+        elif s.startswith("offset:"):
+            raw = s.split(":", 1)[1].strip()
+            try:
+                current_offset = int(raw, 0)
+            except ValueError:
+                pass
+    bases = {}
+    for name, off in direct:
+        if name in row_map:
+            base = row_map[name] - off
+            bases[base] = bases.get(base, 0) + 1
+    if not bases:
+        continue
+    base = max(bases, key=bases.get)
+    # Require at least one anchor. Multiple anchors naturally win when present.
+    for name, off in direct:
+        row_map.setdefault(name, base + off)
+
+rows = sorted(row_map.items(), key=lambda x: (x[1], x[0]))
+
 OUT.parent.mkdir(parents=True, exist_ok=True)
 with OUT.open("w", newline="\n") as f:
     f.write("/* Generated from the public portable-recipe symbol map. No ROM data. */\n")
