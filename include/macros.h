@@ -112,8 +112,16 @@ void* port_seg_to_ptr(uintptr_t addr);
 #define SEGMENT_TO_PTR(segment, offset) \
     ((u8*) port_seg_to_ptr(((uintptr_t) (segment) << 24) | ((uintptr_t) (offset) & 0x00FFFFFF)))
 
-// On the port the "segmented" address of ROM data is already a real pointer.
+#ifdef TARGET_ANDROID
+/*
+ * Android keeps N64-width segmented/token addresses in ROM-derived data.
+ * Resolve them explicitly; unlike the PSP port they are not process pointers.
+ */
+#define ROM_SEG_PTR(romStart, segAddr) ((u8*) port_seg_to_ptr((uintptr_t) (segAddr)))
+#else
+// PSP port: the "segmented" address of ROM data is already a real pointer.
 #define ROM_SEG_PTR(romStart, segAddr) ((u8*) (uintptr_t) (segAddr))
+#endif
 
 // Texture data keeps its N64 (big-endian) byte order so the gfx importers can
 // read it like the RDP does; game code that edits RGBA16 pixels on the CPU
