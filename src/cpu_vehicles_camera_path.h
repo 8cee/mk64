@@ -95,7 +95,7 @@ enum CpuItemStrategyEnum {
 /* Function Prototypes */
 s16 get_angle_between_path(Vec3f, Vec3f);
 
-s32 is_collide_with_vehicle(f32, f32, f32, f32, f32, f32, f32, f32);
+bool is_collide_with_vehicle(f32, f32, f32, f32, f32, f32, f32, f32);
 void adjust_position_by_angle(Vec3f, Vec3f, s16);
 s32 set_vehicle_render_distance_flags(Vec3f, f32, s32);
 void detect_wrong_player_direction(s32, Player*);
@@ -123,7 +123,7 @@ void update_player_timer_sound(s32, Player*);
 void update_player(s32);
 
 void func_8000B140(s32);
-s32 are_in_curve(s32, u16);
+bool are_in_curve(s32, u16);
 bool is_far_from_path(s32);
 f32 calculate_track_position_factor(f32, f32, u16, s32);
 void update_player_position_factor(s32, u16, s32);
