@@ -5,8 +5,14 @@
 #define NULL (void*) 0
 #endif
 
+#ifdef TARGET_N64
 #define true 1
 #define false 0
+#else
+// Ported targets share headers with C99 code (stdbool's 1-byte bool); keep
+// one definition of bool everywhere.
+#include <stdbool.h>
+#endif
 
 typedef signed char s8;
 typedef unsigned char u8;
@@ -17,7 +23,9 @@ typedef unsigned int u32;
 typedef signed long long int s64;
 typedef unsigned long long int u64;
 
+#ifdef TARGET_N64
 #define bool signed int
+#endif
 
 typedef signed char bool8;
 typedef unsigned char ubool8;
