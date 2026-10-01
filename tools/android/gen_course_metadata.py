@@ -49,14 +49,13 @@ by_id = {i:(name,debug,cup,cup_index,course_length,sky_colors,sky_colors2) for i
 def q(s):
     return '"' + s.replace("\\","\\\\").replace('"','\\"') + '"'
 
-names=[]; debug=[]; cups=[]; idx=[]; lengths=[]; lengths=[]; sky=[]; sky2=[]
+names=[]; debug=[]; cups=[]; idx=[]; lengths=[]; sky=[]; sky2=[]
 for i in range(max_id + 1):
     name, dbg, cup, ci, course_length, sc, sc2 = by_id.get(i, ("","","-1","-1","","[0,0,0,0,0,0]","[0,0,0,0,0,0]"))
     names.append(q(name) + ",")
     debug.append(q(dbg) + ",")
     cups.append(cup + ",")
     idx.append(ci + ",")
-    lengths.append(q(length) + ",")
     lengths.append(q(course_length) + ",")
     sky.append("{ " + sc.strip("[]") + " },")
     sky2.append("{ " + sc2.strip("[]") + " },")
