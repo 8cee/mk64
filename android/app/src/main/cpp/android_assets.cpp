@@ -8,6 +8,7 @@ extern "C" {
 void mio0decode(uint8_t* in, uint8_t* out);
 void displaylist_unpack(uintptr_t* data, uintptr_t finalDisplaylistOffset, uint32_t arg2);
 extern uintptr_t gHeapEndPtr;
+extern uintptr_t gSegmentTable[16];
 extern unsigned char __assets_start[];
 extern unsigned char __assets_end[];
 extern const uint8_t gAndroidMk64RecipeBlob[];
@@ -128,7 +129,32 @@ extern "C" bool mk64_android_load_assets() {
         if(!read_rom(c.rom_off,comp.data(),comp.size())){gHeapEndPtr=savedHeap;return false;}
         std::vector<uint8_t> unpack(((c.unpacked_len+15u)&~15u)+72u);
         gHeapEndPtr=reinterpret_cast<uintptr_t>(unpack.data())+((c.unpacked_len+15u)&~15u)+8u;
-        displaylist_unpack(reinterpret_cast<uintptr_t*>(comp.data()+c.packed_off),c.unpacked_len,0);
+
+        /*
+         * displaylist_unpack() takes an N64 segmented address, not a host
+         * pointer. Passing comp.data()+packed_off directly worked on PSP only
+         * by accident because its pointer range resembles the old 32-bit port
+         * assumptions; on ARM64 the upper address bits become a bogus segment
+         * index and crash immediately.
+         *
+         * Map this temporary packed course buffer into segment 0x0F, pass a
+         * genuine 0x0Fxxxxxx address, then restore the previous mapping.
+         */
+        if (c.packed_off >= c.rom_len || c.packed_off >= 0x01000000u) {
+            ALOGE("course %u packed offset out of range: %08x / %08x",
+                  c.course, c.packed_off, c.rom_len);
+            gHeapEndPtr=savedHeap;
+            return false;
+        }
+        const uintptr_t savedSegF = gSegmentTable[0xF];
+        gSegmentTable[0xF] = reinterpret_cast<uintptr_t>(comp.data());
+        const uintptr_t packedSegAddr = 0x0F000000u | c.packed_off;
+        ALOGI("course %u unpack begin packed=%08x unpacked=%u",
+              c.course, (unsigned)packedSegAddr, c.unpacked_len);
+        displaylist_unpack(reinterpret_cast<uintptr_t*>(packedSegAddr),c.unpacked_len,0);
+        gSegmentTable[0xF] = savedSegF;
+        ALOGI("course %u unpack complete", c.course);
+
         for(uint32_t i=0;i<h->recipe_count;i++){
             const Recipe& r=recs[i];
             if(r.kind==PA_UNPACK && r.src==c.course){
