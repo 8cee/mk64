@@ -11,6 +11,7 @@ if [[ ! -f "$SDL_JAVA_DIR/SDLActivity.java" ]]; then
   mkdir -p "$SDL_JAVA_DIR"
   cp "$TMP/SDL2-${SDL_VERSION}/android-project/app/src/main/java/org/libsdl/app/"*.java "$SDL_JAVA_DIR/"
 fi
+# asset alias generator validated
 python3 "$ROOT/tools/android/gen_asset_symbols.py"
 python3 "$ROOT/tools/android/gen_course_metadata.py"
 python3 "$ROOT/tools/android/gen_seg_tables.py"
