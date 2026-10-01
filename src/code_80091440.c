@@ -19,7 +19,7 @@ UNUSED void func_800914E0(void) {
     uintptr_t segment = SEGMENT_NUMBER2(D_8015F718[0]);
     uintptr_t offset = SEGMENT_OFFSET(D_8015F718[0]);
     Camera* camera = &cameras[0];
-    struct ActorSpawnData* sp48 = (struct ActorSpawnData*) VIRTUAL_TO_PHYSICAL2(gSegmentTable[segment] + offset);
+    struct ActorSpawnData* sp48 = (struct ActorSpawnData*) SEGMENT_TO_PTR(segment, offset);
     struct ActorSpawnData* tempData;
 
     s16 temp3 = (s16) D_80152308;
