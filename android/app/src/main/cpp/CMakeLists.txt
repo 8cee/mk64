@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(mk64_android LANGUAGES C CXX)
 
-# Android native runtime bridge. MK64 game subsystems are brought into this
-# library incrementally while libultra services are replaced by host services.
 add_library(mk64_android SHARED
     native_bridge.cpp
     host_clock.cpp
@@ -36,9 +34,6 @@ add_library(mk64_android SHARED
     ../../../../../courses/courseTable.c
 )
 
-
-# Build the decompiled game itself for the Android host.  Keep libultra's
-# platform implementation out; Android supplies that through portable/ultra_shim.c.
 file(GLOB MK64_GAME_ROOT_C "../../../../../src/*.c")
 file(GLOB MK64_GAME_BUFFERS_C "../../../../../src/buffers/*.c")
 file(GLOB MK64_GAME_RACING_C "../../../../../src/racing/*.c")
@@ -55,7 +50,6 @@ list(FILTER MK64_GAME_RACING_C EXCLUDE REGEX "\\.inc\\.c$")
 list(FILTER MK64_GAME_ENDING_C EXCLUDE REGEX "\\.inc\\.c$")
 list(FILTER MK64_GAME_AUDIO_C EXCLUDE REGEX "\\.inc\\.c$")
 list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "\\.inc\\.c$")
-# These objects are ROM-derived in the portable build and live in __assets_start.
 list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "/data_segment2\\.c$")
 list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "/path_spawn_metadata\\.c$")
 list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "/some_data\\.c$")
@@ -78,6 +72,13 @@ find_library(log_lib log)
 find_library(gles2_lib GLESv2)
 target_link_libraries(mk64_android ${log_lib} ${gles2_lib})
 
+# Android devices using 16 KiB memory pages require native ELF LOAD segments
+# to be aligned accordingly. Keep this compatible with both 4 KiB and 16 KiB
+# page-size devices.
+target_link_options(mk64_android PRIVATE
+    "-Wl,-z,max-page-size=16384"
+    "-Wl,-z,common-page-size=16384"
+)
 
 target_compile_definitions(mk64_android PRIVATE VERSION_US=1 F3DEX_GBI=1 F3D_OLD=1 NON_MATCHING=1 AVOID_UB=1 _LANGUAGE_C=1 NO_SEGMENTED_MEMORY=1 TARGET_ANDROID=1 PORT_ENABLE_AUDIO=0 MK64_GAME_LINKED=1 PORT_DRAW_DIST=3000)
 target_include_directories(mk64_android PRIVATE ../../../../../ ../../../../../include ../../../../../src ../../../../../src/racing ../../../../../src/ending ../../../../../src/port ../../../../../src/port/gfx . portable portable/gfx)
