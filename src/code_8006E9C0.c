@@ -121,7 +121,7 @@ u8* dma_copy_base_misc_textures(u8* devAddr, u8* baseAddress, u32 size, u32 offs
 
     size = ALIGN16(size);
     osInvalDCache(address, (size));
-    osPiStartDma(&gDmaIoMesg, 0, 0, (uintptr_t) &_other_texturesSegmentRomStart[((u32) devAddr) & 0xFFFFFF], address,
+    osPiStartDma(&gDmaIoMesg, 0, 0, (uintptr_t) ROM_SEG_PTR(_other_texturesSegmentRomStart, devAddr), address,
                  size, &gDmaMesgQueue);
     osRecvMesg(&gDmaMesgQueue, &gMainReceivedMesg, 1);
     tempAddress = &address;
