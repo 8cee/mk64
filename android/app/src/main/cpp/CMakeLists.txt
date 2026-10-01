@@ -17,14 +17,53 @@ add_library(mk64_android SHARED
     host_gfx_commands.cpp
     game_runtime.cpp
     android_gfx_api.cpp
-    portable/gfx/gfx_cc.c
     portable/ultra_shim.c
-    portable/segments.c
-    portable/decoders.c
-    portable/tkmk00_port.c
+    ../../../../../src/port/segments.c
+    ../../../../../src/port/decoders.c
+    ../../../../../src/port/tkmk00_port.c
+    ../../../../../src/port/gfx/gfx_cc.c
     controller_android.cpp
     android_port_services.cpp
     ../../../../../src/main.c
+)
+
+
+# Build the decompiled game itself for the Android host.  Keep libultra's
+# platform implementation out; Android supplies that through portable/ultra_shim.c.
+file(GLOB MK64_GAME_ROOT_C "../../../../../src/*.c")
+file(GLOB MK64_GAME_DATA_C "../../../../../src/data/*.c")
+file(GLOB MK64_GAME_BUFFERS_C "../../../../../src/buffers/*.c")
+file(GLOB MK64_GAME_RACING_C "../../../../../src/racing/*.c")
+file(GLOB MK64_GAME_ENDING_C "../../../../../src/ending/*.c")
+file(GLOB MK64_GAME_AUDIO_C "../../../../../src/audio/*.c")
+file(GLOB MK64_COURSE_DATA_C "../../../../../courses/*/course_data.c")
+file(GLOB MK64_COURSE_OFFSETS_C "../../../../../courses/*/course_offsets.c")
+file(GLOB MK64_COURSE_DLS_C "../../../../../courses/*/course_displaylists.inc.c")
+file(GLOB MK64_COURSE_VERTS_C "../../../../../courses/*/course_vertices.inc.c")
+file(GLOB MK64_GU_C "../../../../../src/os/gu*.c")
+
+list(FILTER MK64_GAME_ROOT_C EXCLUDE REGEX "/main\\.c$")
+list(FILTER MK64_GAME_ROOT_C EXCLUDE REGEX "\\.inc\\.c$")
+list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "\\.inc\\.c$")
+list(FILTER MK64_GAME_BUFFERS_C EXCLUDE REGEX "\\.inc\\.c$")
+list(FILTER MK64_GAME_RACING_C EXCLUDE REGEX "\\.inc\\.c$")
+list(FILTER MK64_GAME_ENDING_C EXCLUDE REGEX "\\.inc\\.c$")
+list(FILTER MK64_GAME_AUDIO_C EXCLUDE REGEX "\\.inc\\.c$")
+
+target_sources(mk64_android PRIVATE
+    ${MK64_GAME_ROOT_C}
+    ${MK64_GAME_DATA_C}
+    ${MK64_GAME_BUFFERS_C}
+    ${MK64_GAME_RACING_C}
+    ${MK64_GAME_ENDING_C}
+    ${MK64_GAME_AUDIO_C}
+    ${MK64_COURSE_DATA_C}
+    ${MK64_COURSE_OFFSETS_C}
+    ${MK64_COURSE_DLS_C}
+    ${MK64_COURSE_VERTS_C}
+    ${MK64_GU_C}
+    ../../../../../src/os/math/sinf.c
+    ../../../../../src/os/math/cosf.c
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
@@ -33,5 +72,5 @@ find_library(gles2_lib GLESv2)
 target_link_libraries(mk64_android ${log_lib} ${gles2_lib})
 
 
-target_compile_definitions(mk64_android PRIVATE VERSION_US=1 F3DEX_GBI=1 F3D_OLD=1 NON_MATCHING=1 AVOID_UB=1 _LANGUAGE_C=1 NO_SEGMENTED_MEMORY=1 TARGET_ANDROID=1 PORT_ENABLE_AUDIO=0 MK64_GAME_LINKED=1)
-target_include_directories(mk64_android PRIVATE ../../../../../include ../../../../../src ../../../../../src/racing ../../../../../src/ending . portable portable/gfx)
+target_compile_definitions(mk64_android PRIVATE VERSION_US=1 F3DEX_GBI=1 F3D_OLD=1 NON_MATCHING=1 AVOID_UB=1 _LANGUAGE_C=1 NO_SEGMENTED_MEMORY=1 TARGET_ANDROID=1 PORT_ENABLE_AUDIO=0 MK64_GAME_LINKED=1 PORT_DRAW_DIST=3000)
+target_include_directories(mk64_android PRIVATE ../../../../../include ../../../../../src ../../../../../src/racing ../../../../../src/ending ../../../../../src/port ../../../../../src/port/gfx . portable portable/gfx)
