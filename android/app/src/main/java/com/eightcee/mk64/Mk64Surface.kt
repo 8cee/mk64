@@ -15,6 +15,7 @@ class Mk64Surface(context: Context) : GLSurfaceView(context), GLSurfaceView.Rend
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         nativeSurfaceCreated()
+        nativeEnsureGameInitialized()
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -26,6 +27,7 @@ class Mk64Surface(context: Context) : GLSurfaceView(context), GLSurfaceView.Rend
     }
 
     private external fun nativeSurfaceCreated()
+    private external fun nativeEnsureGameInitialized(): Boolean
     private external fun nativeSurfaceChanged(width: Int, height: Int)
     private external fun nativeRenderFrame()
 
