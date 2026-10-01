@@ -21,6 +21,8 @@ class MainActivity : Activity() {
     private external fun nativeRuntimeVersion(): Int
     private external fun nativeRuntimeStage(): Int
     private external fun nativeSetRomPath(path: String): Boolean
+    private external fun nativeLoadAssets(): Boolean
+    private external fun nativeInitGame(): Boolean
     private external fun nativeInitPlatform(): Boolean
     private external fun nativeResumeClock()
     private external fun nativeSetController(buttons: Int, stickX: Int, stickY: Int)
@@ -293,14 +295,81 @@ class MainActivity : Activity() {
             checkpoint("before_nativeSetRomPath")
             val accepted = nativeSetRomPath(target.absolutePath)
             checkpoint(if (accepted) "after_nativeSetRomPath_ok" else "after_nativeSetRomPath_failed")
-            status.text = if (accepted) {
-                "ROM imported\n${target.name} · ${target.length()} bytes · stage ${nativeRuntimeStage()}"
+            if (accepted) {
+                showPostRomDiagnostics(target)
             } else {
-                "ROM import failed in native runtime"
+                status.text = "ROM import failed in native runtime"
             }
         } catch (t: Throwable) {
             checkpoint("importRom_threw_" + t.javaClass.simpleName)
             status.text = "ROM import failed: ${t.javaClass.name}: ${t.message}"
         }
+    }
+
+    private fun showPostRomDiagnostics(target: File) {
+        val gameRoot = FrameLayout(this)
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+        }
+        status = TextView(this).apply {
+            text = "ROM loaded successfully\n${target.name} · ${target.length()} bytes\nStage ${nativeRuntimeStage()}\n\nNext: test asset reconstruction."
+            textSize = 20f
+            setTextIsSelectable(true)
+        }
+        val assetsButton = Button(this).apply {
+            text = "Build ROM assets"
+            setOnClickListener {
+                checkpoint("before_nativeLoadAssets")
+                isEnabled = false
+                try {
+                    val ok = nativeLoadAssets()
+                    checkpoint(if (ok) "after_nativeLoadAssets_ok" else "after_nativeLoadAssets_failed")
+                    if (!ok) {
+                        appendStatus("Asset reconstruction returned failure.")
+                        isEnabled = true
+                        return@setOnClickListener
+                    }
+                    appendStatus("Asset reconstruction OK.")
+                    addGameInitButton(panel)
+                } catch (t: Throwable) {
+                    checkpoint("nativeLoadAssets_threw_" + t.javaClass.simpleName)
+                    appendStatus("Asset reconstruction threw: ${t.javaClass.name}: ${t.message}")
+                    isEnabled = true
+                }
+            }
+        }
+        panel.addView(status)
+        panel.addView(assetsButton)
+        gameRoot.addView(panel)
+        root = gameRoot
+        setContentView(root)
+    }
+
+    private fun addGameInitButton(panel: LinearLayout) {
+        val initButton = Button(this).apply {
+            text = "Initialize MK64 game"
+            setOnClickListener {
+                checkpoint("before_nativeInitGame")
+                isEnabled = false
+                try {
+                    val ok = nativeInitGame()
+                    checkpoint(if (ok) "after_nativeInitGame_ok" else "after_nativeInitGame_failed")
+                    if (!ok) {
+                        appendStatus("Game initialization returned failure.")
+                        isEnabled = true
+                        return@setOnClickListener
+                    }
+                    appendStatus("Game initialization OK. Starting renderer...")
+                    checkpoint("before_final_game_ui")
+                    startGameUi()
+                } catch (t: Throwable) {
+                    checkpoint("nativeInitGame_threw_" + t.javaClass.simpleName)
+                    appendStatus("Game initialization threw: ${t.javaClass.name}: ${t.message}")
+                    isEnabled = true
+                }
+            }
+        }
+        panel.addView(initButton)
     }
 }
