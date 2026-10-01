@@ -27,6 +27,7 @@ for path in SRC.glob("*_metadata.yml"):
     debug = scalar(field("debug_name"))
     cup = field("cup")
     cup_index = field("cup_index")
+    course_length = field("course_length")
     course_length = scalar(field("course_length"))
     sky_colors = field("sky_colors")
     sky_colors2 = field("sky_colors2")
@@ -49,13 +50,14 @@ by_id = {i:(name,debug,cup,cup_index,course_length,sky_colors,sky_colors2) for i
 def q(s):
     return '"' + s.replace("\\","\\\\").replace('"','\\"') + '"'
 
-names=[]; debug=[]; cups=[]; idx=[]; lengths=[]; sky=[]; sky2=[]
+names=[]; debug=[]; cups=[]; idx=[]; lengths=[]; lengths=[]; sky=[]; sky2=[]
 for i in range(max_id + 1):
     name, dbg, cup, ci, course_length, sc, sc2 = by_id.get(i, ("","","-1","-1","","[0,0,0,0,0,0]","[0,0,0,0,0,0]"))
     names.append(q(name) + ",")
     debug.append(q(dbg) + ",")
     cups.append(cup + ",")
     idx.append(ci + ",")
+    lengths.append(q(course_length) + ",")
     lengths.append(q(course_length) + ",")
     sky.append("{ " + sc.strip("[]") + " },")
     sky2.append("{ " + sc2.strip("[]") + " },")
@@ -64,6 +66,7 @@ for i in range(max_id + 1):
 (OUT / "gCourseDebugNames.inc.c").write_text("\n".join(debug) + "\n")
 (OUT / "gCupSelectionByCourseId.inc.c").write_text("\n".join(cups) + "\n")
 (OUT / "gPerCupIndexByCourseId.inc.c").write_text("\n".join(idx) + "\n")
+(OUT / "sCourseLengths.inc.c").write_text("\n".join(lengths) + "\n")
 (OUT / "sCourseLengths.inc.c").write_text("\n".join(lengths) + "\n")
 (OUT / "sSkyColors.inc.c").write_text("\n".join(sky) + "\n")
 (OUT / "sSkyColors2.inc.c").write_text("\n".join(sky2) + "\n")
