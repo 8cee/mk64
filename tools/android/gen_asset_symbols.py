@@ -36,6 +36,8 @@ for p in sorted(PARTS.glob("part*.tsv")):
         if not line or line.startswith("#"):
             continue
         name, off = line.split("\t", 1)
+        if name == "gCourseTable":
+            continue
         rows.append((name, int(off, 0)))
 
 rows.extend((name, off) for name, off in EXTRA_ALIASES.items())
