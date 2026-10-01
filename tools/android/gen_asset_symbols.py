@@ -117,7 +117,11 @@ for yp in sorted(yaml_root.glob("*.yml")):
         if current_name is None:
             continue
         if s.startswith("symbol:"):
-            current_symbol = s.split(":", 1)[1].strip().strip('"')
+            candidate = s.split(":", 1)[1].strip().strip('"')
+            if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", candidate):
+                current_symbol = candidate
+            else:
+                current_symbol = None
         elif s.startswith("offset:"):
             raw = s.split(":", 1)[1].strip()
             try:
