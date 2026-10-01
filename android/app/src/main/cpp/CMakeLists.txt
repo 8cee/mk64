@@ -32,4 +32,4 @@ target_link_libraries(mk64_android ${log_lib} ${gles2_lib})
 
 
 target_compile_definitions(mk64_android PRIVATE VERSION_US=1 F3DEX_GBI=1 F3D_OLD=1 NON_MATCHING=1 AVOID_UB=1 _LANGUAGE_C=1 NO_SEGMENTED_MEMORY=1 TARGET_ANDROID=1 PORT_ENABLE_AUDIO=0)
-target_include_directories(mk64_android PRIVATE ../../../../../../../include ../../../../../../../src ../../../../../../../src/racing ../../../../../../../src/ending . portable portable/gfx)
+target_include_directories(mk64_android PRIVATE ../../../../../include ../../../../../src ../../../../../src/racing ../../../../../src/ending . portable portable/gfx)
