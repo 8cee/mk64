@@ -106,7 +106,7 @@ for yp in sorted(yaml_root.glob("*.yml")):
         nonlocal_vars = None
     # top-level asset blocks only; nested recipe/range blocks are ignored
     for line in text + ["__END__:"]:
-        if line and not line.startswith((" ", "\t")) and line.rstrip().endswith(":"):
+        if line and not line.startswith((" ", "\t")) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*:\\s*(?:#.*)?", line.rstrip()):
             if current_symbol is not None and current_offset is not None:
                 direct.append((current_symbol, current_offset))
             current_name = line.split(":", 1)[0].strip()
