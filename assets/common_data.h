@@ -7,8 +7,8 @@
 
 extern u16 common_tlut_finish_line_banner[];
 extern u16 common_texture_particle_fire[];
-extern u16 common_texture_particle_smoke[];
-extern u16 common_texture_particle_spark[];
+extern u8* common_texture_particle_smoke[];
+extern u8* common_texture_particle_spark[];
 extern Vtx D_0D001200[];
 extern Vtx D_0D001210[];
 extern Vtx D_0D001240[];
@@ -58,6 +58,11 @@ extern Vtx common_vtx_banana[];
 extern Vtx common_vtx_flat_banana[];
 extern u16 common_texture_banana[];
 extern u16 common_texture_flat_banana[];
+extern u8* common_texture_hud_place[];
+extern u8* D_0D015258[];
+extern u8* common_texture_hud_type_C_rank_font[];
+extern u8* common_texture_hud_type_C_rank_tiny_font[];
+extern u8* common_texture_bomb[];
 extern Gfx common_model_banana[];
 extern Gfx common_model_flat_banana[];
 extern u16 common_tlut_trees_import[];
