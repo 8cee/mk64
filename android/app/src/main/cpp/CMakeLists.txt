@@ -32,6 +32,7 @@ add_library(mk64_android SHARED
     generated_asset_symbols.c
     android_port_seg_tables.c
     ../../../../../src/main.c
+    ../../../../../courses/courseTable.c
 )
 
 
