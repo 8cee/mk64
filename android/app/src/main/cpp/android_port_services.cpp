@@ -9,8 +9,6 @@ extern "C" {
 typedef unsigned long uintptr_t;
 typedef unsigned int u32;
 
-uintptr_t gSegmentTable[16] = {0};
-
 static char sSaveDir[1024] = "/data/local/tmp/";
 static char sSavePath[1200];
 
