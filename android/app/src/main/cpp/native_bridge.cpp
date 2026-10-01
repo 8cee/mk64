@@ -18,6 +18,8 @@
 #define MK64_LOGI(...) __android_log_print(ANDROID_LOG_INFO, "MK64", __VA_ARGS__)
 #define MK64_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "MK64", __VA_ARGS__)
 
+extern "C" void mk64_android_gfx_set_size(unsigned width, unsigned height);
+
 namespace {
 enum class RuntimeStage : int {
     Bootstrap = 1,
@@ -213,11 +215,19 @@ Java_com_eightcee_mk64_Mk64Surface_nativeSurfaceCreated(JNIEnv*, jobject) {
 extern "C" JNIEXPORT void JNICALL
 Java_com_eightcee_mk64_Mk64Surface_nativeSurfaceChanged(JNIEnv*, jobject, jint width, jint height) {
     glViewport(0, 0, width, height);
+    mk64_android_gfx_set_size((unsigned)width, (unsigned)height);
     MK64_LOGI("renderer viewport %dx%d", width, height);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_eightcee_mk64_Mk64Surface_nativeRenderFrame(JNIEnv*, jobject) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    mk64_game_runtime().render();
+    if (g_stage.load() >= RuntimeStage::GameReady) {
+        const unsigned ticks = mk64_host_clock_advance(&g_hostClock, monotonic_now_ns());
+        if (ticks != 0) {
+            mk64_game_runtime().run_ticks(ticks);
+            g_stage = RuntimeStage::Running;
+        }
+    } else {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
 }
