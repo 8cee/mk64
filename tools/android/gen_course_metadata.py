@@ -7,6 +7,12 @@ SRC = ROOT / "yamls" / "courses"
 OUT = ROOT / "assets" / "course_metadata"
 OUT.mkdir(parents=True, exist_ok=True)
 
+def scalar(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        return value[1:-1]
+    return value
+
 courses = []
 for path in SRC.glob("*_metadata.yml"):
     text = path.read_text()
@@ -17,11 +23,11 @@ for path in SRC.glob("*_metadata.yml"):
     if not cid:
         continue
     i = int(cid, 0)
-    name = field("name")
+    name = scalar(field("name"))
     debug = scalar(field("debug_name"))
     cup = field("cup")
     cup_index = field("cup_index")
-    course_length = field("course_length")
+    course_length = scalar(field("course_length"))
     sky_colors = field("sky_colors")
     sky_colors2 = field("sky_colors2")
     if not name or name.startswith("#"):
