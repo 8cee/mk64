@@ -1,4 +1,10 @@
 #include <ultra64.h>
+#ifndef TARGET_N64
+#include "port/port.h"
+#ifdef PORT_NET
+#include "port/net/port_net.h"
+#endif
+#endif
 #include <macros.h>
 #include <mk64.h>
 
@@ -177,6 +183,9 @@ void setup_race(void) {
     struct Controller* controller;
     int i;
 
+#ifdef PORT_NET
+    port_net_race_begin();
+#endif
     gPlayerCountSelection1 = gPlayerCount;
     if (gGamestate != RACING) {
         gIsMirrorMode = 0;
@@ -190,20 +199,51 @@ void setup_race(void) {
         gCurrentCourseId = gCupCourseOrder[gCupSelection][gCourseIndexInCup];
     }
     gActiveScreenMode = gScreenModeSelection;
+#ifdef PORT_FORCE_COURSE
+    gCurrentCourseId = (PORT_FORCE_COURSE);
+#endif
+#ifdef PORT_COURSE_TEST
+    {
+        extern s32 gPortForceCourse;
+        if (gPortForceCourse >= 0) {
+            gCurrentCourseId = gPortForceCourse;
+            // Battle arenas (Block Fort/Skyscraper/Double Deck/Big Donut -- NOT
+            // DK Jungle 0x12, a GP course) only make sense in Battle mode; force
+            // the state the battle menu would set so the load path is valid.
+            if (gPortForceCourse == COURSE_BLOCK_FORT || gPortForceCourse == COURSE_SKYSCRAPER ||
+                gPortForceCourse == COURSE_DOUBLE_DECK || gPortForceCourse == COURSE_BIG_DONUT) {
+                gModeSelection = BATTLE;
+                gPlayerCount = gPlayerCountSelection1 = 2;
+                gScreenModeSelection = gActiveScreenMode = SCREEN_MODE_2P_SPLITSCREEN_HORIZONTAL;
+            }
+        }
+    }
+#endif
     if (gCurrentCourseId != gCurrentlyLoadedCourseId) {
         D_80150120 = 0;
         gCurrentlyLoadedCourseId = gCurrentCourseId;
         gNextFreeMemoryAddress = gFreeMemoryResetAnchor;
         load_course(gCurrentCourseId);
+        PORT_LOG(" collision mesh\n");
         course_generate_collision_mesh();
+        PORT_LOG(" collision mesh done\n");
         D_8015F730 = gNextFreeMemoryAddress;
     } else {
         gNextFreeMemoryAddress = D_8015F730;
     }
     func_802969F8();
+    PORT_LOG(" func_802969F8 done\n");
     func_80005310();
+    PORT_LOG(" func_80005310 done\n");
     func_8003D080();
+    PORT_LOG(" func_8003D080 done\n");
     init_hud();
+#ifdef PORT_NET
+    if (port_net_active()) {
+        port_net_hud_layout(); // the local player's HUD at full-screen positions
+    }
+#endif
+    PORT_LOG(" init_hud done\n");
     gRaceState = RACE_NONE;
     gNumSpawnedShells = 0;
     D_800DC5B8 = 0;
@@ -211,9 +251,12 @@ void setup_race(void) {
     gDemoTimer = -1;
     D_802BA048 = 0;
     func_802A74BC();
+    PORT_LOG(" func_802A74BC done\n");
     set_perspective_and_aspect_ratio();
     func_80091FA4();
+    PORT_LOG(" func_80091FA4 done\n");
     init_actors_and_load_textures();
+    PORT_LOG(" init_actors_and_load_textures done\n");
 
     if (gModeSelection != BATTLE) {
         D_8015F8D0[1] = (f32) (gCurrentTrackPath->posY - 15);
