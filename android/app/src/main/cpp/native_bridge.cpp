@@ -19,6 +19,7 @@
 #define MK64_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "MK64", __VA_ARGS__)
 
 extern "C" void mk64_android_gfx_set_size(unsigned width, unsigned height);
+extern "C" bool mk64_android_load_assets();
 
 namespace {
 enum class RuntimeStage : int {
@@ -127,6 +128,13 @@ Java_com_eightcee_mk64_MainActivity_nativeSetRomPath(JNIEnv* env, jobject, jstri
     g_stage = RuntimeStage::RomSelected;
     MK64_LOGI("ROM validated: %lld bytes, %s, order=%s", static_cast<long long>(size), g_romIdentity.c_str(),
               z64 ? "z64" : (v64 ? "v64" : "n64"));
+
+    if (!mk64_android_load_assets()) {
+        MK64_LOGE("ROM asset reconstruction failed");
+        g_stage = RuntimeStage::Failed;
+        return JNI_FALSE;
+    }
+    MK64_LOGI("ROM assets ready");
 
     if (!mk64_game_runtime().initialize()) {
         MK64_LOGE("game runtime initialization failed");
