@@ -125,6 +125,14 @@ Java_com_eightcee_mk64_MainActivity_nativeSetRomPath(JNIEnv* env, jobject, jstri
     g_stage = RuntimeStage::RomSelected;
     MK64_LOGI("ROM validated: %lld bytes, %s, order=%s", static_cast<long long>(size), g_romIdentity.c_str(),
               z64 ? "z64" : (v64 ? "v64" : "n64"));
+
+    if (!mk64_game_runtime().initialize()) {
+        MK64_LOGE("game runtime initialization failed");
+        g_stage = RuntimeStage::Failed;
+        return JNI_FALSE;
+    }
+    g_stage = RuntimeStage::GameReady;
+    MK64_LOGI("game runtime ready");
     return JNI_TRUE;
 }
 
