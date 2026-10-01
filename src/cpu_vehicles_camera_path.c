@@ -1,4 +1,10 @@
 #include <ultra64.h>
+#include <string.h>
+#ifdef PORT_NET
+#include "port/net/port_net.h"
+#else
+#define port_net_active() 0
+#endif
 #include <macros.h>
 #include <defines.h>
 
@@ -147,6 +153,21 @@ VehicleStuff gTankerTruckList[NUM_RACE_TANKER_TRUCKS];
 VehicleStuff gCarList[NUM_RACE_CARS];
 s32 D_80163DD8[4];
 BombKart gBombKarts[NUM_BOMB_KARTS_MAX];
+/* The bomb-kart sim state for the net checksum: a copy with the render-only
+ * visibility flag (unk_4A, written per-camera by func_80057114) and the
+ * unknown/padding tail cleared, so two consoles hash identical gameplay
+ * identically.  Hashing the raw struct would false-desync on unk_4A. */
+int port_bomb_net_state(void* out, int max) {
+    int i;
+    if (max < (int) sizeof(gBombKarts)) return 0;
+    memcpy(out, gBombKarts, sizeof(gBombKarts));
+    for (i = 0; i < NUM_BOMB_KARTS_MAX; i++) {
+        BombKart* b = &((BombKart*) out)[i];
+        b->unk_4A = 0;
+        b->unk_4C = 0;
+    }
+    return (int) sizeof(gBombKarts);
+}
 Collision D_80164038[NUM_BOMB_KARTS_MAX];
 struct unexpiredActors gUnexpiredActorsList[8];
 CpuItemStrategyData cpu_ItemStrategy[NUM_PLAYERS];
@@ -717,6 +738,9 @@ void set_places(void) {
     s32 playerId;
     s32 rankHigh;
 
+#ifdef PORT_NET
+    if (port_net_result_locked()) return;
+#endif
     switch (gModeSelection) {
         case BATTLE:
         default:
@@ -808,6 +832,9 @@ void update_player_rankings(void) {
     s32 i;
     s32 numRacers;
 
+#ifdef PORT_NET
+    if (port_net_result_locked()) return;
+#endif
     switch (gModeSelection) {
         case BATTLE:
         default:
@@ -860,6 +887,9 @@ void set_places_end_course_with_time(void) {
     s32 j;
     s32 this_loops_upper_bound_is_brough_to_you_by_the_number = 8;
 
+#ifdef PORT_NET
+    if (port_net_result_locked()) return;
+#endif
     for (i = 0; i < this_loops_upper_bound_is_brough_to_you_by_the_number;) {
         gCourseCompletionPercentByRank[i++] = 0.0f;
     }
