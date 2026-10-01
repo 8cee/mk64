@@ -5,9 +5,8 @@
 #include <vector>
 
 extern "C" {
-#include <ultra64.h>
-void mio0decode(u8* in, u8* out);
-void displaylist_unpack(uintptr_t* data, uintptr_t finalDisplaylistOffset, u32 arg2);
+void mio0decode(uint8_t* in, uint8_t* out);
+void displaylist_unpack(uintptr_t* data, uintptr_t finalDisplaylistOffset, uint32_t arg2);
 extern uintptr_t gHeapEndPtr;
 extern unsigned char __assets_start[];
 extern unsigned char __assets_end[];
