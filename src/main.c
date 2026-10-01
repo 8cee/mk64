@@ -39,6 +39,18 @@
 #include <debug.h>
 #include "crash_screen.h"
 #include "buffers/gfx_output_buffer.h"
+#ifndef TARGET_N64
+#include <string.h>
+#include "port/port.h"
+#ifdef PORT_NET
+#include "port/net/port_net.h"
+#endif
+static u32 sPortTraceFrames = 6;
+#define PORT_TRACE(...) if (sPortTraceFrames != 0) PORT_LOG(__VA_ARGS__)
+#ifndef PORT_ENABLE_AUDIO
+#define PORT_ENABLE_AUDIO 1
+#endif
+#endif
 
 void func_80091B78(void);
 void audio_init(void);
@@ -384,6 +396,11 @@ void dispatch_audio_sptask(struct SPTask* spTask) {
 }
 
 void exec_display_list(struct SPTask* spTask) {
+#ifndef TARGET_N64
+    // Display lists are executed synchronously in display_and_vsync().
+    spTask->state = SPTASK_STATE_FINISHED;
+    return;
+#endif
     osWritebackDCacheAll();
     spTask->state = SPTASK_STATE_NOT_STARTED;
     if (sCurrentDisplaySPTask == NULL) {
@@ -458,6 +475,54 @@ void config_gfx_pool(void) {
  * Selects the next framebuffer to be rendered and displayed.
  */
 void display_and_vsync(void) {
+#ifndef TARGET_N64
+    extern int gfx_trace_frames;
+    static s32 sTracedStartMenu = 0;
+    s32 verbose = 0;
+    if (gGamestate == START_MENU_FROM_QUIT && gMenuSelection == START_MENU && sTracedStartMenu == 0) {
+        sTracedStartMenu = 1;
+        verbose = 1;
+        PORT_LOG("first start-menu frame: %d gfx cmds\n", (int) (gDisplayListHead - gGfxPool->gfxPool));
+    }
+#ifdef PORT_PROFILE
+    {
+        extern u32 port_time_us(void);
+        extern void port_profile_add(int slot, u32 us);
+        u32 t0 = port_time_us(), t1, t2, t3;
+        port_gfx_start_frame();
+        port_gfx_run(gGfxPool->gfxPool);
+        t1 = port_time_us();
+        port_gfx_end_frame();
+        t2 = port_time_us();
+        if (gPortHalfFrame != 1) { /* once per game frame, as below */
+            port_audio_frame();
+        }
+        t3 = port_time_us();
+        port_profile_add(1, t1 - t0);
+        port_profile_add(2, t2 - t1);
+        port_profile_add(3, t3 - t2);
+    }
+#else
+    port_gfx_start_frame();
+    port_gfx_run(gGfxPool->gfxPool);
+    port_gfx_end_frame();
+    if (gPortHalfFrame != 1) { /* once per game frame: the mixer is paced by it, a split frame is two pictures */
+        port_audio_frame();
+    }
+    if (verbose) PORT_LOG(" audio done\n");
+#endif
+    // Two VI retraces per game frame (30 fps).
+    gVBlankTimer += 2 * V_BlANK_TIMER_ITER;
+    sNumVBlanks += 2;
+    if (++sRenderedFramebuffer == 3) {
+        sRenderedFramebuffer = 0;
+    }
+    if (++sRenderingFramebuffer == 3) {
+        sRenderingFramebuffer = 0;
+    }
+    gGlobalTimer++;
+    return;
+#endif
     profiler_log_thread5_time(BEFORE_DISPLAY_LISTS);
     osRecvMesg(&gGfxVblankQueue, &gMainReceivedMesg, OS_MESG_BLOCK);
     exec_display_list(&gGfxPool->spTask);
@@ -478,6 +543,9 @@ void display_and_vsync(void) {
 }
 
 void init_segment_ending_sequences(void) {
+#ifndef TARGET_N64
+    return; // no code overlays on ported targets
+#endif
     bzero((void*) SEG_ENDING, SEG_ENDING_SIZE);
     osWritebackDCacheAll();
     dma_copy((u8*) SEG_ENDING, (u8*) SEG_ENDING_ROM_START, SEG_ENDING_ROM_SIZE);
@@ -486,6 +554,9 @@ void init_segment_ending_sequences(void) {
 }
 
 void init_segment_racing(void) {
+#ifndef TARGET_N64
+    return; // no code overlays on ported targets
+#endif
     bzero((void*) SEG_RACING, SEG_RACING_SIZE);
     osWritebackDCacheAll();
     dma_copy((u8*) SEG_RACING, (u8*) SEG_RACING_ROM_START, SEG_RACING_ROM_SIZE);
@@ -494,6 +565,13 @@ void init_segment_racing(void) {
 }
 
 void dma_copy(u8* dest, u8* romAddr, size_t size) {
+#ifndef TARGET_N64
+    // The cartridge is linked into the executable.
+    if (size != 0) {
+        memcpy(dest, romAddr, size);
+    }
+    return;
+#endif
 
     osInvalDCache(dest, size);
     while (size > 0x100) {
@@ -520,6 +598,19 @@ void setup_game_memory(void) {
     uintptr_t allocatedMemory;
     UNUSED s32 unknown_padding;
 
+#ifndef TARGET_N64
+    // Everything the N64 DMAs here (trig tables, data_segment2, common
+    // textures) is linked in and reached through the port's segment tables.
+    gHeapEndPtr = SEG_RACING;
+    set_segment_base_addr(0, NULL);
+    initialize_memory_pool(MEMORY_POOL_START, MEMORY_POOL_END);
+    func_80000BEC();
+    set_segment_base_addr(2, NULL);
+    port_set_segment_table(0xD, &gPortCommonDataSegTable);
+    set_segment_base_addr(0xD, NULL);
+    gFreeMemoryResetAnchor = gNextFreeMemoryAddress;
+    return;
+#endif
     init_segment_racing();
     gHeapEndPtr = SEG_RACING;
     set_segment_base_addr(0, (void*) SEG_START);
@@ -570,12 +661,52 @@ void game_init_clear_framebuffer(void) {
     clear_framebuffer(0);
 }
 
+#ifdef TARGET_PSP
+/* Where a split-frame picture's time goes outside the display-list interpreter
+ * (max_fps_experiments; the ~5.5 ms block the data/exp runs could not look
+ * into).  PORT_PROFILE builds add up each segment per half and log the averages
+ * with the frame profile. */
+enum { SEG_TICK, SEG_KARTLOAD, SEG_OBJECTS, SEG_RENDER3D, SEG_HUD, SEG_MENUITEMS, SEG_PRE, SEG_COUNT };
+static u32 sSegSum[2][SEG_COUNT], sSegPics[2], sSegT;
+#ifdef PORT_PROFILE
+#include <stdio.h>
+extern u32 port_time_us(void);
+#define SEG_START() (sSegT = port_time_us())
+#define SEG_END(seg) do { u32 now_ = port_time_us(); if (gPortHalfFrame != 0) sSegSum[gPortHalfFrame - 1][seg] += now_ - sSegT; sSegT = now_; } while (0)
+void port_seg_report(void) {
+    static const char* names[SEG_COUNT] = { "tick", "kart sprites", "objects", "3D display list", "HUD display list", "menu items", "pads+audio cmds" };
+    s32 h, k;
+    for (h = 0; h < 2; h++) {
+        char line[256];
+        s32 n = 0;
+        if (sSegPics[h] == 0) continue;
+        n += snprintf(line + n, sizeof(line) - n, "split half %c (%u pictures), us each:", h ? 'B' : 'A', (unsigned) sSegPics[h]);
+        for (k = 0; k < SEG_COUNT; k++) n += snprintf(line + n, sizeof(line) - n, " %s %u,", names[k], (unsigned) (sSegSum[h][k] / sSegPics[h]));
+        PORT_LOG("%s\n", line);
+        sSegPics[h] = 0;
+        for (k = 0; k < SEG_COUNT; k++) sSegSum[h][k] = 0;
+    }
+}
+#else
+#define SEG_START() ((void) 0)
+#define SEG_END(seg) ((void) 0)
+#endif
+#endif
+
 void race_logic_loop(void) {
     s16 i;
     u16 rotY;
 
     gMatrixObjectCount = 0;
     gMatrixEffectCount = 0;
+#ifdef TARGET_PSP
+    /* A split frame (port.h, gPortHalfFrame): its second half picks up after
+     * tick 1 -- whatever that tick did (pause, quit) takes effect next frame,
+     * as it would have. */
+    if (gPortHalfFrame == 2) {
+        goto port_second_half;
+    }
+#endif
     if (gIsGamePaused != 0) {
         func_80290B14();
     }
@@ -591,10 +722,66 @@ void race_logic_loop(void) {
         sNumVBlanks = 1;
     }
     func_802A4EF4();
+#ifdef TARGET_PSP
+port_second_half:
+#endif
 
     switch (gActiveScreenMode) {
         case SCREEN_MODE_1P:
             gTickSpeed = 2;
+#ifdef TARGET_PSP
+            if (gPortHalfFrame != 0) {
+                /* the 1P frame below, one tick per picture */
+                sSegPics[gPortHalfFrame - 1]++;
+                SEG_START();
+                if (gPortHalfFrame == 1) {
+                    replays_loop();
+                }
+                if (gIsGamePaused == 0 || gPortHalfFrame == 2) {
+                    if (D_8015011E) {
+                        gCourseTimer += COURSE_TIMER_ITER;
+                    }
+                    func_802909F0();
+                    evaluate_collision_for_players_and_actors();
+                    handle_a_press_for_all_players_during_race();
+                    func_8001EE98(gPlayerOneCopy, camera1, 0);
+                    func_80028F70();
+                    func_8028F474();
+                    func_80059AC8();
+                    update_course_actors();
+                    course_update_water();
+                    func_8028FCBC();
+                    SEG_END(SEG_TICK);
+                    /* Kart animation, particles and the sprite-decode queue: once
+                     * per game frame, as the game does (after both ticks).  It ran
+                     * in both halves for a while -- added while chasing a crash
+                     * that was the debug texture flush -- which cost 1.3 ms a
+                     * picture on hardware and stepped the kart animation twice a
+                     * frame.  The first half draws the sprites decoded for the
+                     * last picture: an empty queue tells the renderer not to
+                     * decode them again. */
+                    if (gPortHalfFrame == 2) {
+                        func_80022744();
+                    } else {
+                        gPlayersToRenderCount = 0;
+                    }
+                    SEG_END(SEG_KARTLOAD);
+                }
+                /* Objects and HUD: updated once per frame (second half); the
+                 * first half only prepares this picture's render state, as the
+                 * paused game does. */
+                func_8005A070();
+                SEG_END(SEG_OBJECTS);
+                if (gPortHalfFrame == 2) {
+                    sNumVBlanks = 0;
+                }
+                profiler_log_thread5_time(LEVEL_SCRIPT_EXECUTE);
+                D_8015F788 = 0;
+                render_player_one_1p_screen();
+                SEG_END(SEG_RENDER3D);
+                break;
+            }
+#endif
             replays_loop();
             if (gIsGamePaused == 0) {
                 for (i = 0; i < gTickSpeed; i++) {
@@ -687,6 +874,11 @@ void race_logic_loop(void) {
                 select_framebuffer();
             }
             D_8015F788 = 0;
+#ifdef PORT_NET
+            if (port_net_active()) {
+                port_render_local_player(); // ad hoc: this machine's player, full screen
+            } else
+#endif
             if (gPlayerWinningIndex == 0) {
                 render_player_two_2p_screen_vertical();
                 render_player_one_2p_screen_vertical();
@@ -733,6 +925,11 @@ void race_logic_loop(void) {
                 select_framebuffer();
             }
             D_8015F788 = 0;
+#ifdef PORT_NET
+            if (port_net_active()) {
+                port_render_local_player(); // ad hoc: this machine's player, full screen
+            } else
+#endif
             if (gPlayerWinningIndex == 0) {
                 render_player_two_2p_screen_horizontal();
                 render_player_one_2p_screen_horizontal();
@@ -805,6 +1002,11 @@ void race_logic_loop(void) {
                 select_framebuffer();
             }
             D_8015F788 = 0;
+#ifdef PORT_NET
+            if (port_net_active()) {
+                port_render_local_player(); // ad hoc: this machine's player, full screen
+            } else
+#endif
             if (gPlayerWinningIndex == 0) {
                 render_player_two_3p_4p_screen();
                 render_player_three_3p_4p_screen();
@@ -845,9 +1047,18 @@ void race_logic_loop(void) {
             }
         }
     }
+#ifdef TARGET_PSP
+    SEG_START();
+#endif
     func_802A4300();
     func_800591B4();
+#ifdef TARGET_PSP
+    SEG_END(SEG_HUD);
+#endif
     func_80093E20();
+#ifdef TARGET_PSP
+    SEG_END(SEG_MENUITEMS);
+#endif
 #if DVDL
     display_dvdl();
 #endif
@@ -889,15 +1100,32 @@ void game_state_handler(void) {
         case COURSE_SELECT_MENU_FROM_QUIT:
             // Display black
             osViBlack(0);
+#ifdef PORT_NET
+            if (port_net_lobby_active() || port_net_modal_active()) {
+                // the lobby / drop-out prompt over the frozen menu (docs/adhoc.md)
+                if (port_net_lobby_active()) port_net_lobby_update();
+                init_rcp();
+                func_80094A64(gGfxPool);
+                if (port_net_lobby_active()) port_net_lobby_draw();
+                else port_net_modal_draw();
+                break;
+            }
+#endif
+            PORT_TRACE("  update_menus\n");
             update_menus();
+            PORT_TRACE("  init_rcp\n");
             init_rcp();
+            PORT_TRACE("  func_80094A64\n");
             func_80094A64(gGfxPool);
+            PORT_TRACE("  menus done\n");
 #if DVDL
             display_dvdl();
 #endif
             break;
         case RACING:
+            PORT_TRACE("  race_logic_loop\n");
             race_logic_loop();
+            PORT_TRACE("  race_logic_loop done\n");
             break;
         case ENDING:
             podium_ceremony_loop();
@@ -1118,9 +1346,12 @@ void func_8000262C(void) {
 }
 
 void func_80002658(void) {
+    PORT_TRACE(" func_80091B78\n");
     func_80091B78();
     gActiveScreenMode = SCREEN_MODE_1P;
+    PORT_TRACE(" set_perspective_and_aspect_ratio\n");
     set_perspective_and_aspect_ratio();
+    PORT_TRACE(" func_80002658 done\n");
 }
 
 /**
@@ -1152,7 +1383,14 @@ void update_gamestate(void) {
              * In laymens terms, random_u16() outputs the same value every time.
              */
             init_segment_racing();
+            PORT_LOG("setup_race (course %d)\n", gCurrentCourseId);
             setup_race();
+            PORT_LOG("setup_race done\n");
+            sPortTraceFrames = 3;
+            {
+                extern int gfx_trace_frames;
+                gfx_trace_frames = 0; /* was 1: debug DL trace, disabled */
+            }
             break;
         case ENDING:
             gCurrentlyLoadedCourseId = COURSE_NULL;
@@ -1167,6 +1405,365 @@ void update_gamestate(void) {
             break;
     }
 }
+
+#ifndef TARGET_N64
+/**
+ * Ported targets run the game on one thread: port_game_init() does what
+ * thread3_video/thread4_audio/thread5_game_loop set up, and
+ * port_game_loop_one_iteration() is one trip round thread5's loop.
+ */
+void port_game_init(void) {
+    gPhysicalFramebuffers[0] = (u16*) &gFramebuffer0;
+    gPhysicalFramebuffers[1] = (u16*) &gFramebuffer1;
+    gPhysicalFramebuffers[2] = (u16*) &gFramebuffer2;
+    setup_mesg_queues();
+    setup_game_memory();
+#if PORT_ENABLE_AUDIO
+    PORT_LOG("audio_init\n");
+    audio_init();
+#endif
+
+    osCreateMesgQueue(&gGfxVblankQueue, gGfxMesgBuf, 1);
+    osCreateMesgQueue(&gGameVblankQueue, &gGameMesgBuf, 1);
+    init_controllers();
+    if (!wasSoftReset) {
+        clear_nmi_buffer();
+    }
+    set_vblank_handler(2, &gGameVblankHandler, &gGameVblankQueue, (OSMesg) OS_EVENT_SW2);
+    nmi_gVersusResults2P = &pAppNmiBuffer[0];
+    nmi_gVersusResults3P = &pAppNmiBuffer[2];
+    nmi_gVersusResults4P = &pAppNmiBuffer[11];
+    gNmiUnknown4 = &pAppNmiBuffer[23];
+    gNmiUnknown5 = &pAppNmiBuffer[25];
+    gNmiUnknown6 = &pAppNmiBuffer[28];
+    rendering_init();
+    read_controllers();
+#if PORT_ENABLE_AUDIO
+    func_800C5CB8();
+#endif
+}
+
+/* The N64 audio thread builds one audio frame per VI retrace; the game runs
+ * at 30 fps, so two per game frame.  synthesis_execute() runs the RSP
+ * command list through the C mixer straight into the AI buffers. */
+void port_audio_frame(void) {
+#if PORT_ENABLE_AUDIO
+    // Keep ~50 ms queued at the output regardless of the game frame rate (the
+    // N64 audio thread ran per VI retrace, not per game frame): mix until the
+    // FIFO holds enough, at most 3 audio frames per game frame.
+    // create_next_audio_frame_task() only produces a buffer every
+    // gAudioBufferParameters.presetUnk4 (2) calls, so call it in pairs.
+    extern u32 port_audio_out_queued_bytes(void);
+    s32 i;
+    for (i = 0; i < 3; i++) {
+        if (i > 0 && port_audio_out_queued_bytes() >= 2600 * 4) {
+            break;
+        }
+        create_next_audio_frame_task();
+        create_next_audio_frame_task();
+    }
+#endif
+}
+
+int gPortTraceArm; /* debug: set to re-arm the per-phase trace for a few frames */
+#include <stdio.h>
+s32 gPortHalfFrame = 0;
+static u32 sStallT[4];
+extern u32 port_time_us(void);
+s32 gPortVblanksPerFrame = 2;
+s32 gPortLastFrameVblanks = 2;
+u32 gPortLastFrameBusyUs = 0;
+static s32 sPortSplitHoldoff; /* iterations left at 30 fps after 60 could not be held */
+static s32 sPortClassicMode; /* saved preference; Start + Select toggles whole frames */
+static s32 sExpRunning;        /* PORT_EXP builds: the data/exp measurement is rotating its experiments */
+static s32 sNoDirect = -1;
+extern int gPortNoDirectEmit;  /* gfx_pc.c */
+
+void port_fps_mode_init(void) {
+    char mode[16];
+    FILE* f = fopen(port_save_path("fps_mode.txt"), "rb");
+    sPortClassicMode = 0;
+    if (f != NULL) {
+        if (fgets(mode, sizeof(mode), f) != NULL && strcmp(mode, "classic\n") == 0) sPortClassicMode = 1;
+        fclose(f);
+    }
+    PORT_LOG("fps: %s Mode loaded\n", sPortClassicMode ? "Classic" : "Performance");
+}
+
+void port_toggle_fps_mode(void) {
+    FILE* f;
+    const char* mode;
+    s32 saved = 0;
+    sPortClassicMode = !sPortClassicMode;
+    sPortSplitHoldoff = 0; /* explicitly returning to Performance tries 60 again */
+    /* One small write when the user changes mode, never per frame. Keep this
+     * separate from the game's EEPROM so the preference cannot affect saves. */
+    mode = sPortClassicMode ? "classic\n" : "performance\n";
+    f = fopen(port_save_path("fps_mode.txt"), "wb");
+    if (f != NULL) {
+        saved = fwrite(mode, 1, strlen(mode), f) == strlen(mode);
+        if (fclose(f) != 0) saved = 0;
+    }
+    port_gfx_show_fps_mode(sPortClassicMode, saved);
+    PORT_LOG("fps: %s Mode selected (%s)\n", sPortClassicMode ? "Classic" : "Performance", saved ? "saved" : "save failed");
+}
+
+/* A frame may be split when it is a plain 1P race frame: the 2P-4P loops and
+ * the lockstep (one network frame per iteration) keep whole frames. */
+static s32 port_frame_can_split(void) {
+#ifdef PORT_DEBUG_KNOBS
+    static s32 sOff = -1;
+    if (sOff < 0) { /* test knob: a data/fps30 file keeps whole frames, for A/B runs */
+        FILE* f = fopen(port_save_path("fps30"), "rb");
+        sOff = f != NULL;
+        if (f != NULL) fclose(f);
+        PORT_LOG("fps: split frames (60 fps in 1P races) %s\n", sOff ? "off (data/fps30)" : "on");
+    }
+    if (sOff) {
+        return 0;
+    }
+#endif
+    if (sPortClassicMode || gGamestate != RACING || gActiveScreenMode != SCREEN_MODE_1P || gIsGamePaused != 0 ||
+        gIsInQuitToMenuTransition != 0 || sPortSplitHoldoff > 0) {
+        return 0;
+    }
+#ifdef PORT_NET
+    if (port_net_active()) {
+        return 0;
+    }
+#endif
+    return 1;
+}
+
+/* Halves that miss their vblank run the game slow: past a quarter of them in
+ * two seconds, fall back to whole frames for a while, then try again. */
+static void port_split_stats(void) {
+    static u32 sHalves, sMissed, sBusySum, sBusyMax, sLogHalves;
+    if (sPortSplitHoldoff > 0) {
+        /* Back at 30 fps because 60 was not held.  Ten seconds was arbitrary
+         * and usually far longer than the heavy stretch: a whole frame is one
+         * 60 fps picture plus one more tick (~2 ms), so its busy time says
+         * whether 60 would fit again.  After at least a second, return as soon
+         * as half a second of frames averages under that; the ten seconds stay
+         * as the upper limit. */
+        static u32 sWholeN, sWholeBusy;
+        sPortSplitHoldoff--;
+        if (gPortHalfFrame == 0 && gGamestate == RACING && gIsGamePaused == 0) {
+            sWholeN++;
+            sWholeBusy += gPortLastFrameBusyUs;
+            if (sWholeN == 15) {
+                u32 avg = sWholeBusy / 15;
+                if (sPortSplitHoldoff <= 300 - 30 && avg < 17500) {
+                    PORT_LOG("fps: back to 60 after %d frames at 30 (whole frames now %u us)\n", (int) (300 - sPortSplitHoldoff), (unsigned) avg);
+                    sPortSplitHoldoff = 0;
+                }
+                sWholeN = sWholeBusy = 0;
+            }
+        } else {
+            sWholeN = sWholeBusy = 0;
+        }
+    }
+    if (gPortHalfFrame == 0) {
+        return;
+    }
+    sHalves++; sLogHalves++;
+    sBusySum += gPortLastFrameBusyUs;
+    if (gPortLastFrameBusyUs > sBusyMax) sBusyMax = gPortLastFrameBusyUs;
+    if (gPortLastFrameVblanks > 1) sMissed++;
+    /* The governor, once the race itself runs (the flyover and the countdown
+     * are always late and say nothing about the race): every second, pull the
+     * draw distance in a little only if pictures really were late, never below
+     * GOV_FLOOR, and let it straight back out after a clean second.  (Its first
+     * version also reacted to the average busy time and sat at 1200 of 3000 for
+     * whole races with no late picture at all: far too visible.) */
+#define GOV_FLOOR ((float) PORT_DRAW_DIST) /* never nearer than the 30 fps build draws: on DK's Jungle Parkway a floor of
+                                            * 2600 sat right on the far backdrop, which popped in and out as this breathed */
+#define GOV_CEIL 5000.0f
+    {
+        static u32 sGovN, sGovLate, sGovBusy, sGovHold;
+        if (gRaceState < RACE_IN_PROGRESS || sExpRunning) {
+            gPortDrawDist = (float) PORT_DRAW_DIST;
+            sGovN = sGovLate = sGovBusy = sGovHold = 0;
+        } else {
+            sGovN++;
+            sGovBusy += gPortLastFrameBusyUs;
+            if (gPortLastFrameVblanks > 1) sGovLate++;
+            if (sGovN == 60) {
+                u32 avg = sGovBusy / 60;
+                if (sGovHold > 0) sGovHold--;
+                if (gPortDrawDist > GOV_FLOOR && (sGovLate >= 2 || avg > 15300)) {
+                    gPortDrawDist *= 0.93f;
+                    sGovHold = 15; /* no growing again for 15 s: the edge must not move in and out */
+                } else if (sGovLate == 0 && avg < 13800 && sGovHold == 0) {
+                    gPortDrawDist *= 1.04f;
+                }
+                if (gPortDrawDist < GOV_FLOOR) gPortDrawDist = GOV_FLOOR;
+                if (gPortDrawDist > GOV_CEIL) gPortDrawDist = GOV_CEIL;
+                sGovN = sGovLate = sGovBusy = 0;
+            }
+        }
+    }
+#ifdef PORT_DEBUG_KNOBS
+    {
+        /* data/nodirect: batches go through the staging copy again (the switch
+         * to pull if direct vertex emit ever misbehaves on some hardware) */
+        if (sNoDirect < 0) {
+            FILE* nf = fopen(port_save_path("nodirect"), "rb");
+            sNoDirect = nf != NULL;
+            if (nf != NULL) fclose(nf);
+            if (sNoDirect) PORT_LOG("gfx: direct vertex emit off (data/nodirect)\n");
+            gPortNoDirectEmit = sNoDirect;
+        }
+    }
+#endif
+#ifdef PORT_EXP
+    /* Hardware cost breakdown (-DPORT_EXP builds): with an empty data/exp file, a race rotates
+     * through eight renderer experiments ONE SECOND at a time and adds each
+     * one's busy time up over the whole run, logging the averages every 24
+     * seconds.  (Five-second windows compared different stretches of track:
+     * the scene changed more than the stages cost.)  The first 12 pictures
+     * after a switch are left out: caches refill.  What is left when a stage
+     * is switched off is what the others cost.  The picture is wrong while it
+     * runs. */
+    {
+        extern s32 gPortExpMode;
+        static s32 sExpOn = -1;
+        static u32 sExpPic, sExpTotal, sExpSum[8], sExpN[8], sExpLate[8];
+        if (sExpOn < 0) {
+            FILE* f = fopen(port_save_path("exp"), "rb");
+            sExpOn = f != NULL;
+            if (f != NULL) fclose(f);
+        }
+        sExpRunning = sExpOn && gRaceState >= RACE_IN_PROGRESS;
+        if (sExpOn && gRaceState >= RACE_IN_PROGRESS) {
+            if (sExpPic >= 12) {
+                sExpSum[gPortExpMode] += gPortLastFrameBusyUs;
+                sExpN[gPortExpMode]++;
+                if (gPortLastFrameVblanks > 1) sExpLate[gPortExpMode]++;
+            }
+            if (++sExpPic == 60) {
+                sExpPic = 0;
+                gPortExpMode = (gPortExpMode + 1) % 8;
+            }
+            sPortSplitHoldoff = 0; /* the measurement needs 60 fps pictures: no 30 fps fallback while it runs */
+            if (++sExpTotal == 1440) { /* every 24 s of pictures: three turns of the eight modes */
+                static const char* names[] = { "everything", "no triangles (vertices only)", "no vertices, no triangles", "display list not run", "triangles culled and clipped but not drawn", "no texture imports (and so no texture changes)", "everything, batches through the staging copy", "everything, vertex flags from C compares" };
+                s32 m;
+                {
+                    extern u32 gPortExpCount[10];
+                    u32 p = sExpTotal / 8, *c = gPortExpCount; /* counted in mode 0 only: a seventh of the report's pictures */
+                    PORT_LOG("exp counts per normal picture: tris in %u, rejected %u, culled %u, clipper %u, emitted %u | rebuilds %u, imports %u, uploads %u, flushes %u | vertices %u\n",
+                             (unsigned) (c[0] / p), (unsigned) (c[1] / p), (unsigned) (c[2] / p), (unsigned) (c[3] / p), (unsigned) (c[4] / p),
+                             (unsigned) (c[5] / p), (unsigned) (c[6] / p), (unsigned) (c[7] / p), (unsigned) (c[8] / p), (unsigned) (c[9] / p));
+                    for (m = 0; m < 10; m++) c[m] = 0;
+                }
+                for (m = 0; m < 8; m++) {
+                    PORT_LOG("exp %d (%s): busy %u us avg per picture over %u pictures, %u late\n", (int) m, names[m],
+                             (unsigned) (sExpN[m] ? sExpSum[m] / sExpN[m] : 0), (unsigned) sExpN[m], (unsigned) sExpLate[m]);
+                    sExpSum[m] = sExpN[m] = sExpLate[m] = 0;
+                }
+                sExpTotal = 0;
+            }
+        } else {
+            gPortExpMode = 0;
+        }
+        gPortNoDirectEmit = sNoDirect || gPortExpMode == 6;
+    }
+#endif
+    if (sHalves == 120) {
+        if (sMissed > 14 && !sExpRunning) { /* over an eighth late: the game would run visibly slow */
+            sPortSplitHoldoff = 300;
+            PORT_LOG("fps: 60 not held (%u of 120 pictures late): 30 fps until the frames are light enough again (10 s at most)\n", (unsigned) sMissed);
+        }
+        if (sLogHalves >= 600 || sMissed > 14) {
+            PORT_LOG("fps: split frames: busy %u us avg, %u max per picture (16667 = 60 fps), %u of 120 late, draw distance %d\n",
+                     (unsigned) (sBusySum / sHalves), (unsigned) sBusyMax, (unsigned) sMissed, (int) gPortDrawDist);
+            sLogHalves = 0;
+        }
+        sHalves = sMissed = sBusySum = sBusyMax = 0;
+    }
+}
+
+void port_game_loop_one_iteration(void) {
+    if (gPortTraceArm) { sPortTraceFrames = gPortTraceArm; gPortTraceArm = 0; }
+    { /* a heartbeat every 60 iterations, and every phase change as it happens (a crash log ends with where it was) */
+        static int n, lastState = -1, lastMenu = -1, lastCourse = -1, lastRace = -1;
+        ++n;
+        if (gGamestate != lastState || gMenuSelection != lastMenu || gCurrentCourseId != lastCourse || gRaceState != lastRace) {
+            lastState = gGamestate; lastMenu = gMenuSelection; lastCourse = gCurrentCourseId; lastRace = gRaceState;
+            PORT_LOG("game: iteration %d: state %d menu %d course %d race %d players %d\n", n, gGamestate, gMenuSelection, gCurrentCourseId, gRaceState, gPlayerCount);
+        } else if ((n % 60) == 0) {
+            PORT_LOG("game: iteration %d (state %d menu %d)\n", n, gGamestate, gMenuSelection);
+        }
+    }
+    PORT_TRACE("iteration start (timer %d)\n", gGlobalTimer);
+    /* Stall detector: a race iteration that takes over 300 ms logs where the
+     * time went (five clock reads an iteration).  A 2-3 s freeze was seen on
+     * hardware once; this names the phase if it comes back. */
+    sStallT[0] = port_time_us();
+    port_split_stats();
+    sStallT[1] = port_time_us();
+    SEG_START();
+    if (gPortHalfFrame == 1) {
+        /* The second half of a split frame: the frame's audio commands, state
+         * change and pad read were its first half's. */
+        gPortHalfFrame = 2;
+        config_gfx_pool();
+    } else {
+#if PORT_ENABLE_AUDIO
+    func_800CB2C4();
+    PORT_TRACE(" func_800CB2C4 done\n");
+#endif
+    if (gGamestateNext != gGamestate) {
+        PORT_TRACE("gamestate %d -> %d\n", gGamestate, gGamestateNext);
+        gGamestate = gGamestateNext;
+        update_gamestate();
+        PORT_TRACE(" update_gamestate done\n");
+    }
+    config_gfx_pool();
+    read_controllers();
+    gPortHalfFrame = port_frame_can_split() ? 1 : 0;
+    }
+    gPortVblanksPerFrame = gPortHalfFrame != 0 ? 1 : 2;
+    sStallT[2] = port_time_us();
+    SEG_END(SEG_PRE); /* audio commands, state change, gfx pool, pads -- a first half's; a second half's is the pool alone */
+    gPortLogDefer = gGamestate == RACING && gIsGamePaused == 0; /* no memory-stick stalls in a race */
+    if (!gPortLogDefer) {
+        port_log_flush();
+        gPortDrawDist = (float) PORT_DRAW_DIST; /* the governor starts every race from the full distance */
+    }
+    PORT_TRACE(" game_state_handler (state %d, menu %d)\n", gGamestate, gMenuSelection);
+#ifdef PORT_PROFILE
+    {
+        extern u32 port_time_us(void);
+        extern void port_profile_add(int slot, u32 us);
+        u32 t0 = port_time_us();
+        game_state_handler();
+        port_profile_add(0, port_time_us() - t0);
+    }
+#else
+    game_state_handler();
+#endif
+    sStallT[3] = port_time_us();
+    PORT_TRACE(" end_master_display_list\n");
+    end_master_display_list();
+    PORT_TRACE(" display_and_vsync (%d gfx cmds)\n", (int) (gDisplayListHead - gGfxPool->gfxPool));
+    display_and_vsync();
+    {
+        u32 end = port_time_us();
+        if (gGamestate == RACING && end - sStallT[0] > 300000u && sStallT[3] != 0) {
+            PORT_LOG("stall: %u ms in one race iteration (half %d): stats+log %u, pads+audio cmds %u, game logic %u, renderer+GE+vsync+mixer %u\n",
+                     (unsigned) ((end - sStallT[0]) / 1000u), (int) gPortHalfFrame, (unsigned) ((sStallT[1] - sStallT[0]) / 1000u),
+                     (unsigned) ((sStallT[2] - sStallT[1]) / 1000u), (unsigned) ((sStallT[3] - sStallT[2]) / 1000u),
+                     (unsigned) ((end - sStallT[3]) / 1000u));
+        }
+    }
+    PORT_TRACE(" frame done\n");
+    if (sPortTraceFrames != 0) {
+        sPortTraceFrames--;
+    }
+}
+#endif
 
 void thread5_game_loop(UNUSED void* arg) {
     osCreateMesgQueue(&gGfxVblankQueue, gGfxMesgBuf, 1);
