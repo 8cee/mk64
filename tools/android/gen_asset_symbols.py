@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,6 +39,55 @@ for p in sorted(PARTS.glob("part*.tsv")):
         rows.append((name, int(off, 0)))
 
 rows.extend((name, off) for name, off in EXTRA_ALIASES.items())
+
+def derive_common_aliases(rows):
+    """Expand grouped common-data tables into their YAML sub-symbol aliases."""
+    base_offsets = {name: off for name, off in rows}
+    text = (ROOT / "yamls/us/common_data.yml").read_text().splitlines()
+    tables = {}
+    in_tables = False
+    current_table = None
+    symbols = []
+    current_symbol = None
+    for raw in text:
+        stripped = raw.strip()
+        indent = len(raw) - len(raw.lstrip(" "))
+        if indent == 2 and stripped == "tables:":
+            in_tables = True
+            current_table = None
+            continue
+        if in_tables:
+            if indent == 4:
+                m = re.match(r"([A-Za-z_0-9]+):\\s*$", stripped)
+                if m:
+                    current_table = m.group(1)
+                    continue
+            if indent == 6 and current_table:
+                m = re.match(r"range:\\s*\\[\\s*(0x[0-9A-Fa-f]+)\\s*,\\s*(0x[0-9A-Fa-f]+)", stripped)
+                if m:
+                    tables[current_table] = (int(m.group(1), 16), int(m.group(2), 16))
+                    continue
+            if indent <= 0:
+                in_tables = False
+        if not in_tables:
+            if indent == 0:
+                m = re.match(r"([A-Za-z_0-9]+):\\s*$", stripped)
+                current_symbol = m.group(1) if m else None
+            elif indent == 2 and current_symbol:
+                m = re.match(r"offset:\\s*(0x[0-9A-Fa-f]+)", stripped)
+                if m:
+                    symbols.append((current_symbol, int(m.group(1), 16)))
+    out = []
+    for table, (start, end) in tables.items():
+        base = base_offsets.get(table)
+        if base is None:
+            continue
+        for name, off in symbols:
+            if start <= off <= end:
+                out.append((name, base + (off - start)))
+    return out
+
+rows.extend(derive_common_aliases(rows))
 rows = sorted(set(rows))
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
