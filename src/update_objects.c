@@ -356,7 +356,7 @@ UNUSED void func_8007274C(s32 objectIndex) {
 /**
  * @brief will return true if the timer is done
  */
-bool set_and_run_timer_object(s32 objectIndex, s32 timer) {
+s32 set_and_run_timer_object(s32 objectIndex, s32 timer) {
     bool phi_v1;
 
     phi_v1 = false;
