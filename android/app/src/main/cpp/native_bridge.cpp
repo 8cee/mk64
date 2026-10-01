@@ -239,6 +239,28 @@ Java_com_eightcee_mk64_Mk64Surface_nativeSurfaceCreated(JNIEnv*, jobject) {
     MK64_LOGI("OpenGL ES renderer surface created");
 }
 
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_eightcee_mk64_Mk64Surface_nativeEnsureGameInitialized(JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(g_runtimeMutex);
+    if (g_stage.load() >= RuntimeStage::GameReady) {
+        return JNI_TRUE;
+    }
+    if (g_romPath.empty() || g_romImage.size() == 0) {
+        MK64_LOGE("nativeEnsureGameInitialized: no ROM loaded");
+        return JNI_FALSE;
+    }
+    MK64_LOGI("nativeEnsureGameInitialized: begin on GL thread");
+    if (!mk64_game_runtime().initialize()) {
+        MK64_LOGE("game runtime initialization failed on GL thread");
+        g_stage = RuntimeStage::Failed;
+        return JNI_FALSE;
+    }
+    g_stage = RuntimeStage::GameReady;
+    MK64_LOGI("game runtime ready on GL thread");
+    return JNI_TRUE;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_eightcee_mk64_Mk64Surface_nativeSurfaceChanged(JNIEnv*, jobject, jint width, jint height) {
     glViewport(0, 0, width, height);
