@@ -129,13 +129,32 @@ Java_com_eightcee_mk64_MainActivity_nativeSetRomPath(JNIEnv* env, jobject, jstri
     MK64_LOGI("ROM validated: %lld bytes, %s, order=%s", static_cast<long long>(size), g_romIdentity.c_str(),
               z64 ? "z64" : (v64 ? "v64" : "n64"));
 
+    // ROM import stops here. Asset reconstruction and game initialization are
+    // separate JNI stages so the Android shell can persist a crash checkpoint.
+    return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_eightcee_mk64_MainActivity_nativeLoadAssets(JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(g_runtimeMutex);
+    if (g_romPath.empty() || g_romImage.size() == 0) {
+        MK64_LOGE("nativeLoadAssets: no ROM loaded");
+        return JNI_FALSE;
+    }
+    MK64_LOGI("nativeLoadAssets: begin");
     if (!mk64_android_load_assets()) {
         MK64_LOGE("ROM asset reconstruction failed");
         g_stage = RuntimeStage::Failed;
         return JNI_FALSE;
     }
-    MK64_LOGI("ROM assets ready");
+    MK64_LOGI("nativeLoadAssets: complete");
+    return JNI_TRUE;
+}
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_eightcee_mk64_MainActivity_nativeInitGame(JNIEnv*, jobject) {
+    std::lock_guard<std::mutex> lock(g_runtimeMutex);
+    MK64_LOGI("nativeInitGame: begin");
     if (!mk64_game_runtime().initialize()) {
         MK64_LOGE("game runtime initialization failed");
         g_stage = RuntimeStage::Failed;
