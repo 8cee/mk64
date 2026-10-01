@@ -8,9 +8,7 @@
 void generate_train_path(void) {
     s32 i;
     Path2D* temp;
-    TrackPathPoint* pathPoint =
-        (TrackPathPoint*) VIRTUAL_TO_PHYSICAL2(gSegmentTable[SEGMENT_NUMBER2(d_course_kalimari_desert_train_path)] +
-                                               SEGMENT_OFFSET(d_course_kalimari_desert_train_path));
+    TrackPathPoint* pathPoint = d_course_kalimari_desert_train_path; // port: compiled-in array, gSegmentTable[8] unmapped
 
     GET_PATH_LENGTH(pathPoint)
 
@@ -23,9 +21,11 @@ void generate_ferry_path(void) {
     TrackPathPoint* pathPoint;
     s32 i;
 
-    pathPoint =
-        (TrackPathPoint*) VIRTUAL_TO_PHYSICAL2(gSegmentTable[SEGMENT_NUMBER2(d_course_dks_jungle_parkway_ferry_path)] +
-                                               (SEGMENT_OFFSET(d_course_dks_jungle_parkway_ferry_path)));
+    // Port: the ferry path is a compiled-in array (NO_SEGMENTED_MEMORY); the
+    // original's gSegmentTable[8] indirection is never mapped here (base 0) and
+    // resolves to a garbage pointer that faults -> hang on load / crash on HW.
+    // Use the array symbol directly.
+    pathPoint = d_course_dks_jungle_parkway_ferry_path;
 
     GET_PATH_LENGTH(pathPoint)
 
@@ -485,6 +485,9 @@ void init_vehicles_ferry(void) {
         } else {
             paddleBoat->isActive = 1;
         }
+#ifdef PORT_NO_FERRY
+        paddleBoat->isActive = 0; // bisect: disable the DK ferry entirely
+#endif
         paddleBoat->velocity[0] = 0.0f;
         paddleBoat->velocity[1] = 0.0f;
         paddleBoat->velocity[2] = 0.0f;
