@@ -83,6 +83,7 @@
         }                                                                                                            \
     }
 
+#ifdef TARGET_N64
 // convert a virtual address to physical.
 #define VIRTUAL_TO_PHYSICAL(addr) ((uintptr_t) (addr) & 0x1FFFFFFF)
 
@@ -91,6 +92,42 @@
 
 // another way of converting virtual to physical
 #define VIRTUAL_TO_PHYSICAL2(addr) ((u8*) (addr) - 0x80000000U)
+
+// segment number + offset -> pointer (manual segmented_to_virtual)
+#define SEGMENT_TO_PTR(segment, offset) VIRTUAL_TO_PHYSICAL2(gSegmentTable[segment] + (offset))
+
+// ROM address of data inside a ROM segment, given its segmented address
+#define ROM_SEG_PTR(romStart, segAddr) (&(romStart)[SEGMENT_OFFSET(segAddr)])
+
+#define BE16_LOAD(p) (*(p))
+#define BE16_STORE(p, v) (*(p) = (v))
+#else
+// Ported targets use flat pointers: nothing to convert.
+#include <stdint.h>
+#define VIRTUAL_TO_PHYSICAL(addr) ((uintptr_t) (addr))
+#define PHYSICAL_TO_VIRTUAL(addr) ((uintptr_t) (addr))
+#define VIRTUAL_TO_PHYSICAL2(addr) ((u8*) (addr))
+
+void* port_seg_to_ptr(uintptr_t addr);
+#define SEGMENT_TO_PTR(segment, offset) \
+    ((u8*) port_seg_to_ptr(((uintptr_t) (segment) << 24) | ((uintptr_t) (offset) & 0x00FFFFFF)))
+
+// On the port the "segmented" address of ROM data is already a real pointer.
+#define ROM_SEG_PTR(romStart, segAddr) ((u8*) (uintptr_t) (segAddr))
+
+// Texture data keeps its N64 (big-endian) byte order so the gfx importers can
+// read it like the RDP does; game code that edits RGBA16 pixels on the CPU
+// must go through these.
+static inline unsigned short port_be16_load(const void* p) {
+    unsigned short v = *(const unsigned short*) p;
+    return (unsigned short) ((v >> 8) | (v << 8));
+}
+static inline void port_be16_store(void* p, unsigned int v) {
+    *(unsigned short*) p = (unsigned short) (((v & 0xFF) << 8) | ((v >> 8) & 0xFF));
+}
+#define BE16_LOAD(p) port_be16_load(p)
+#define BE16_STORE(p, v) port_be16_store((p), (v))
+#endif
 
 // aligns an address to the next 16 bytes
 #define ALIGN16(val) (((val) + 0xF) & ~0xF)
