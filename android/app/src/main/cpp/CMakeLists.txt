@@ -25,6 +25,7 @@ add_library(mk64_android SHARED
     controller_android.cpp
     android_port_services.cpp
     android_crash_stub.c
+    android_asset_bss_stubs.c
     generated_asset_symbols.c
     android_port_seg_tables.c
     ../../../../../src/main.c
