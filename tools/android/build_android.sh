@@ -13,6 +13,7 @@ if [[ ! -f "$SDL_JAVA_DIR/SDLActivity.java" ]]; then
 fi
 python3 "$ROOT/tools/android/gen_asset_symbols.py"
 python3 "$ROOT/tools/android/gen_course_metadata.py"
+python3 "$ROOT/tools/android/gen_seg_tables.py"
 gradle -p "$ROOT/android" --no-daemon :app:assembleDebug
 APK="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
 test -f "$APK"
