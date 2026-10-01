@@ -18,7 +18,7 @@ for path in SRC.glob("*_metadata.yml"):
         continue
     i = int(cid, 0)
     name = field("name")
-    debug = field("debug_name")
+    debug = scalar(field("debug_name"))
     cup = field("cup")
     cup_index = field("cup_index")
     course_length = field("course_length")
