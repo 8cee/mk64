@@ -24,6 +24,7 @@ add_library(mk64_android SHARED
     ../../../../../src/port/gfx/gfx_cc.c
     controller_android.cpp
     android_port_services.cpp
+    android_crash_stub.c
     generated_asset_symbols.c
     ../../../../../src/main.c
 )
@@ -39,6 +40,7 @@ file(GLOB MK64_GAME_AUDIO_C "../../../../../src/audio/*.c")
 file(GLOB MK64_GU_C "../../../../../src/os/gu*.c")
 
 list(FILTER MK64_GAME_ROOT_C EXCLUDE REGEX "/main\\.c$")
+list(FILTER MK64_GAME_ROOT_C EXCLUDE REGEX "/crash_screen\\.c$")
 list(FILTER MK64_GAME_ROOT_C EXCLUDE REGEX "\\.inc\\.c$")
 list(FILTER MK64_GAME_BUFFERS_C EXCLUDE REGEX "\\.inc\\.c$")
 list(FILTER MK64_GAME_RACING_C EXCLUDE REGEX "\\.inc\\.c$")
