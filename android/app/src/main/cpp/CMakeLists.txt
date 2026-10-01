@@ -24,6 +24,7 @@ add_library(mk64_android SHARED
     portable/tkmk00_port.c
     controller_android.cpp
     android_port_services.cpp
+    ../../../../../src/main.c
 )
 
 target_compile_features(mk64_android PRIVATE cxx_std_17)
@@ -32,5 +33,5 @@ find_library(gles2_lib GLESv2)
 target_link_libraries(mk64_android ${log_lib} ${gles2_lib})
 
 
-target_compile_definitions(mk64_android PRIVATE VERSION_US=1 F3DEX_GBI=1 F3D_OLD=1 NON_MATCHING=1 AVOID_UB=1 _LANGUAGE_C=1 NO_SEGMENTED_MEMORY=1 TARGET_ANDROID=1 PORT_ENABLE_AUDIO=0)
+target_compile_definitions(mk64_android PRIVATE VERSION_US=1 F3DEX_GBI=1 F3D_OLD=1 NON_MATCHING=1 AVOID_UB=1 _LANGUAGE_C=1 NO_SEGMENTED_MEMORY=1 TARGET_ANDROID=1 PORT_ENABLE_AUDIO=0 MK64_GAME_LINKED=1)
 target_include_directories(mk64_android PRIVATE ../../../../../include ../../../../../src ../../../../../src/racing ../../../../../src/ending . portable portable/gfx)
