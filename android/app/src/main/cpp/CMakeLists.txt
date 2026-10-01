@@ -38,12 +38,6 @@ file(GLOB MK64_GAME_RACING_C "../../../../../src/racing/*.c")
 file(GLOB MK64_GAME_ENDING_C "../../../../../src/ending/*.c")
 file(GLOB MK64_GAME_AUDIO_C "../../../../../src/audio/*.c")
 file(GLOB MK64_GAME_DATA_C "../../../../../src/data/*.c")
-file(GLOB_RECURSE MK64_COURSE_DATA_C
-    "../../../../../courses/*/course_data.c"
-    "../../../../../courses/*/course_offsets.c"
-    "../../../../../courses/*/course_displaylists.inc.c"
-    "../../../../../courses/*/course_vertices.inc.c"
-)
 file(GLOB MK64_GU_C "../../../../../src/os/gu*.c")
 
 list(FILTER MK64_GAME_ROOT_C EXCLUDE REGEX "/main\\.c$")
@@ -54,6 +48,11 @@ list(FILTER MK64_GAME_RACING_C EXCLUDE REGEX "\\.inc\\.c$")
 list(FILTER MK64_GAME_ENDING_C EXCLUDE REGEX "\\.inc\\.c$")
 list(FILTER MK64_GAME_AUDIO_C EXCLUDE REGEX "\\.inc\\.c$")
 list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "\\.inc\\.c$")
+# These objects are ROM-derived in the portable build and live in __assets_start.
+list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "/data_segment2\\.c$")
+list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "/path_spawn_metadata\\.c$")
+list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "/some_data\\.c$")
+list(FILTER MK64_GAME_DATA_C EXCLUDE REGEX "/textures\\.c$")
 
 target_sources(mk64_android PRIVATE
     ${MK64_GAME_ROOT_C}
@@ -62,7 +61,6 @@ target_sources(mk64_android PRIVATE
     ${MK64_GAME_ENDING_C}
     ${MK64_GAME_AUDIO_C}
     ${MK64_GAME_DATA_C}
-    ${MK64_COURSE_DATA_C}
     ${MK64_GU_C}
     ../../../../../src/os/math/sinf.c
     ../../../../../src/os/math/cosf.c
