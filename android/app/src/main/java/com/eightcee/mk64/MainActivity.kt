@@ -18,7 +18,15 @@ import java.io.File
 class MainActivity : Activity() {
     companion object {
         private const val ROM_PICKER_REQUEST = 64
-        init { System.loadLibrary("mk64_android") }
+
+        private var nativeLoadError: Throwable? = null
+        private val nativeLoaded: Boolean = try {
+            System.loadLibrary("mk64_android")
+            true
+        } catch (t: Throwable) {
+            nativeLoadError = t
+            false
+        }
     }
 
     private external fun nativeRuntimeVersion(): Int
@@ -42,7 +50,21 @@ class MainActivity : Activity() {
             it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
-        nativeInitPlatform()
+        if (!nativeLoaded) {
+            showNativeLoadError()
+            return
+        }
+
+        val platformReady = try {
+            nativeInitPlatform()
+        } catch (t: Throwable) {
+            showStartupError("Native platform initialization failed", t)
+            return
+        }
+        if (!platformReady) {
+            showStartupError("Native platform initialization returned failure", null)
+            return
+        }
 
         val root = FrameLayout(this)
         val gameSurface = Mk64Surface(this)
@@ -79,18 +101,47 @@ class MainActivity : Activity() {
         setContentView(root)
     }
 
+    private fun showNativeLoadError() {
+        val t = nativeLoadError
+        showStartupError("MK64 native library failed to load", t)
+    }
+
+    private fun showStartupError(title: String, t: Throwable?) {
+        val details = buildString {
+            append(title)
+            if (t != null) {
+                append("\n\n")
+                append(t.javaClass.name)
+                append(": ")
+                append(t.message ?: "(no message)")
+            }
+            append("\n\nPlease send a screenshot of this screen if the app still cannot start.")
+        }
+        setContentView(TextView(this).apply {
+            text = details
+            textSize = 18f
+            setPadding(32, 32, 32, 32)
+            setTextIsSelectable(true)
+        })
+    }
+
     override fun onResume() {
         super.onResume()
-        nativeResumeClock()
+        if (nativeLoaded) {
+            try {
+                nativeResumeClock()
+            } catch (_: Throwable) {
+                // Startup diagnostics in onCreate handle hard native failures.
+            }
+        }
     }
 
     override fun onPause() {
         super.onPause()
     }
 
-
     private fun pushController() {
-        nativeSetController(controllerButtons, controllerStickX, controllerStickY)
+        if (nativeLoaded) nativeSetController(controllerButtons, controllerStickX, controllerStickY)
     }
 
     private fun n64ButtonFor(keyCode: Int): Int = when (keyCode) {
@@ -112,7 +163,8 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0) {
+        if (nativeLoaded &&
+            event.source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK) != 0) {
             val mask = n64ButtonFor(event.keyCode)
             if (mask != 0) {
                 controllerButtons = if (event.action == KeyEvent.ACTION_DOWN) {
@@ -128,7 +180,8 @@ class MainActivity : Activity() {
     }
 
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
-        if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK &&
+        if (nativeLoaded &&
+            event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK &&
             event.action == MotionEvent.ACTION_MOVE) {
             fun axis(axis: Int): Float {
                 val range = event.device?.getMotionRange(axis, event.source)
@@ -160,7 +213,6 @@ class MainActivity : Activity() {
         try {
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: SecurityException) {
-            // Some document providers grant only temporary access; copying below still works.
         }
         importRom(uri)
     }
