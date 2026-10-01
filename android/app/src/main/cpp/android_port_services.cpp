@@ -6,7 +6,6 @@
 #include <unistd.h>
 
 extern "C" {
-typedef unsigned long uintptr_t;
 typedef unsigned int u32;
 
 static char sSaveDir[1024] = "/data/local/tmp/";
