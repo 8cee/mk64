@@ -6,17 +6,18 @@
 #include <unistd.h>
 
 extern "C" {
-#include <ultra64.h>
+typedef unsigned long uintptr_t;
+typedef unsigned int u32;
 
 uintptr_t gSegmentTable[16] = {0};
 
 static char sSaveDir[1024] = "/data/local/tmp/";
 static char sSavePath[1200];
 
-uint32_t port_time_us(void) {
+u32 port_time_us(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint32_t)(((uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL) & 0xffffffffu);
+    return (u32)(((uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL) & 0xffffffffu);
 }
 
 const char* port_save_dir(void) {
