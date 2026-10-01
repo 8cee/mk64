@@ -10,13 +10,12 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.view.Choreographer
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import java.io.File
 
-class MainActivity : Activity(), Choreographer.FrameCallback {
+class MainActivity : Activity() {
     companion object {
         private const val ROM_PICKER_REQUEST = 64
         init { System.loadLibrary("mk64_android") }
@@ -78,12 +77,6 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
         ))
         panel.bringToFront()
         setContentView(root)
-        Choreographer.getInstance().postFrameCallback(this)
-    }
-
-    override fun doFrame(frameTimeNanos: Long) {
-        nativeAdvanceFrame()
-        Choreographer.getInstance().postFrameCallback(this)
     }
 
     override fun onResume() {
@@ -92,7 +85,6 @@ class MainActivity : Activity(), Choreographer.FrameCallback {
     }
 
     override fun onPause() {
-        Choreographer.getInstance().removeFrameCallback(this)
         super.onPause()
     }
 
