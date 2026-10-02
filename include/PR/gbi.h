@@ -1681,36 +1681,10 @@ typedef struct {
 /*
  * Generic Gfx Packet
  */
-#ifdef TARGET_ANDROID
-/*
- * N64 display-list commands are ALWAYS two 32-bit words. Keeping uintptr_t
- * here inflates Gfx to 16 bytes on ARM64 and breaks every ROM/static display
- * list stride. Full host pointers are encoded through port_gfx_ptr_token().
- */
-typedef struct {
-    u32 w0;
-    u32 w1;
-} Gwords;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-u32 port_gfx_ptr_token(const void* ptr);
-void* port_gfx_ptr_resolve(u32 token);
-#ifdef __cplusplus
-}
-#endif
-
-#define PORT_GFX_ADDR(p) port_gfx_ptr_token((const void*)(uintptr_t)(p))
-#define PORT_GFX_STATIC_ADDR(p) ((u32)(uintptr_t)(p))
-#else
 typedef struct {
     uintptr_t w0;
     uintptr_t w1;
 } Gwords;
-#define PORT_GFX_ADDR(p) ((uintptr_t)(p))
-#define PORT_GFX_STATIC_ADDR(p) ((uintptr_t)(p))
-#endif
 
 /*
  * This union is the fundamental type of the display list.
@@ -1757,12 +1731,12 @@ typedef union {
         Gfx* _g = (Gfx*) (pkt);                                   \
                                                                   \
         _g->words.w0 = _SHIFTL((c), 24, 8) | _SHIFTL((l), 0, 24); \
-        _g->words.w1 = PORT_GFX_ADDR(s);                           \
+        _g->words.w1 = (uintptr_t) (s);                           \
     }
 
 #define gsDma0p(c, s, l)                                               \
     {                                                                  \
-        { _SHIFTL((c), 24, 8) | _SHIFTL((l), 0, 24), PORT_GFX_STATIC_ADDR(s) } \
+        { _SHIFTL((c), 24, 8) | _SHIFTL((l), 0, 24), (uintptr_t) (s) } \
     }
 
 #define gDma1p(pkt, c, s, l, p)                                                           \
@@ -1770,12 +1744,12 @@ typedef union {
         Gfx* _g = (Gfx*) (pkt);                                                           \
                                                                                           \
         _g->words.w0 = (_SHIFTL((c), 24, 8) | _SHIFTL((p), 16, 8) | _SHIFTL((l), 0, 16)); \
-        _g->words.w1 = PORT_GFX_ADDR(s);                                                   \
+        _g->words.w1 = (uintptr_t) (s);                                                   \
     }
 
 #define gsDma1p(c, s, l, p)                                                                    \
     {                                                                                          \
-        { (_SHIFTL((c), 24, 8) | _SHIFTL((p), 16, 8) | _SHIFTL((l), 0, 16)), PORT_GFX_STATIC_ADDR(s) } \
+        { (_SHIFTL((c), 24, 8) | _SHIFTL((p), 16, 8) | _SHIFTL((l), 0, 16)), (uintptr_t) (s) } \
     }
 
 #define gDma2p(pkt, c, adrs, len, idx, ofs)                                                                            \
@@ -1783,7 +1757,7 @@ typedef union {
         Gfx* _g = (Gfx*) (pkt);                                                                                        \
         _g->words.w0 =                                                                                                 \
             (_SHIFTL((c), 24, 8) | _SHIFTL(((len) - 1) / 8, 19, 5) | _SHIFTL((ofs) / 8, 8, 8) | _SHIFTL((idx), 0, 8)); \
-        _g->words.w1 = PORT_GFX_ADDR(adrs);                                                                             \
+        _g->words.w1 = (uintptr_t) (adrs);                                                                             \
     }
 #define gsDma2p(c, adrs, len, idx, ofs)                                                                                \
     {                                                                                                                  \
@@ -1818,11 +1792,11 @@ typedef union {
     {                                                                                           \
         Gfx* _g = (Gfx*) (pkt);                                                                 \
         _g->words.w0 = _SHIFTL(G_VTX, 24, 8) | _SHIFTL((n), 12, 8) | _SHIFTL((v0) + (n), 1, 7); \
-        _g->words.w1 = PORT_GFX_ADDR(v);                                                         \
+        _g->words.w1 = (uintptr_t) (v);                                                         \
     }
 #define gsSPVertex(v, n, v0)                                                                           \
     {                                                                                                  \
-        { (_SHIFTL(G_VTX, 24, 8) | _SHIFTL((n), 12, 8) | _SHIFTL((v0) + (n), 1, 7)), PORT_GFX_STATIC_ADDR(v) } \
+        { (_SHIFTL(G_VTX, 24, 8) | _SHIFTL((n), 12, 8) | _SHIFTL((v0) + (n), 1, 7)), (uintptr_t) (v) } \
     }
 #elif (defined(F3DEX_GBI) || defined(F3DLP_GBI))
 /*
@@ -1917,7 +1891,7 @@ typedef union {
         Gfx* _g = (Gfx*) (pkt);                                                            \
                                                                                            \
         _g->words.w0 = (_SHIFTL((c), 24, 8) | _SHIFTL((p0), 8, 16) | _SHIFTL((p1), 0, 8)); \
-        _g->words.w1 = PORT_GFX_ADDR(dat);                                                  \
+        _g->words.w1 = (uintptr_t) (dat);                                                  \
     }
 
 #define gsImmp21(c, p0, p1, dat)                                                                \
@@ -2339,7 +2313,7 @@ typedef union {
     {                                                                                                         \
         Gfx* _g = (Gfx*) (pkt);                                                                               \
         _g->words.w0 = _SHIFTL(G_RDPHALF_1, 24, 8);                                                           \
-        _g->words.w1 = PORT_GFX_ADDR(dl);                                                                      \
+        _g->words.w1 = (uintptr_t) (dl);                                                                      \
         _g = (Gfx*) (pkt);                                                                                    \
         _g->words.w0 = (_SHIFTL(G_BRANCH_Z, 24, 8) | _SHIFTL((vtx) * 5, 12, 12) | _SHIFTL((vtx) * 2, 0, 12)); \
         _g->words.w1 = G_DEPTOZSrg(zval, near, far, flag, zmin, zmax);                                        \
@@ -2372,7 +2346,7 @@ typedef union {
     {                                                                                                         \
         Gfx* _g = (Gfx*) (pkt);                                                                               \
         _g->words.w0 = _SHIFTL(G_RDPHALF_1, 24, 8);                                                           \
-        _g->words.w1 = PORT_GFX_ADDR(dl);                                                                      \
+        _g->words.w1 = (uintptr_t) (dl);                                                                      \
         _g = (Gfx*) (pkt);                                                                                    \
         _g->words.w0 = (_SHIFTL(G_BRANCH_Z, 24, 8) | _SHIFTL((vtx) * 5, 12, 12) | _SHIFTL((vtx) * 2, 0, 12)); \
         _g->words.w1 = (unsigned int) (zval);                                                                 \
@@ -2400,10 +2374,10 @@ typedef union {
     {                                                                                         \
         Gfx* _g = (Gfx*) (pkt);                                                               \
         _g->words.w0 = _SHIFTL(G_RDPHALF_1, 24, 8);                                           \
-        _g->words.w1 = PORT_GFX_ADDR(uc_dstart);                                               \
+        _g->words.w1 = (uintptr_t) (uc_dstart);                                               \
         _g = (Gfx*) (pkt);                                                                    \
         _g->words.w0 = (_SHIFTL(G_LOAD_UCODE, 24, 8) | _SHIFTL((int) (uc_dsize) - 1, 0, 16)); \
-        _g->words.w1 = PORT_GFX_ADDR(uc_start);                                                \
+        _g->words.w1 = (uintptr_t) (uc_start);                                                \
     }
 
 #define gsSPLoadUcodeEx(uc_start, uc_dstart, uc_dsize)                                                   \
@@ -2433,7 +2407,7 @@ typedef union {
         Gfx* _g = (Gfx*) (pkt);                                                                          \
         _g->words.w0 = _SHIFTL(G_DMA_IO, 24, 8) | _SHIFTL((flag), 23, 1) | _SHIFTL((dmem) / 8, 13, 10) | \
                        _SHIFTL((size) - 1, 0, 12);                                                       \
-        _g->words.w1 = PORT_GFX_ADDR(dram);                                                               \
+        _g->words.w1 = (uintptr_t) (dram);                                                               \
     }
 
 #define gsSPDma_io(flag, dmem, dram, size)                                                    \
@@ -2937,7 +2911,7 @@ typedef union {
         Gfx* _g = (Gfx*) (pkt);                                                                                       \
                                                                                                                       \
         _g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) | _SHIFTL(siz, 19, 2) | _SHIFTL((width) - 1, 0, 12); \
-        _g->words.w1 = PORT_GFX_ADDR(i);                                                                               \
+        _g->words.w1 = (uintptr_t) (i);                                                                               \
     }
 
 #define gsSetImage(cmd, fmt, siz, width, i)                                                                \
