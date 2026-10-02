@@ -1352,12 +1352,18 @@ static void gfx_sp_set_other_mode(uint32_t shift, uint32_t num_bits, uint64_t mo
 static inline void *seg_addr(uintptr_t w1) {
 #ifdef TARGET_ANDROID
     /*
-     * Fast3D command words are N64-width addresses. On the PSP port they could
-     * be used directly because host pointers fit in 32 bits; on LP64 Android
-     * they must be expanded through the port segment/token resolver.
+     * Android Gfx words are fixed 32-bit N64 storage. Dynamic host pointers
+     * are tagged by port_gfx_ptr_token(); static module pointers are recovered
+     * by port_gfx_ptr_resolve(); live segment values fall through to the
+     * regular MK64 segment tables.
      */
+    extern void* port_gfx_ptr_resolve(uint32_t token);
     extern void* port_seg_to_ptr(uintptr_t addr);
-    return port_seg_to_ptr(w1);
+    void* resolved = port_gfx_ptr_resolve((uint32_t)w1);
+    if (resolved != NULL) {
+        return resolved;
+    }
+    return port_seg_to_ptr((uint32_t)w1);
 #else
     return (void *) w1;
 #endif
