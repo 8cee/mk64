@@ -163,30 +163,13 @@ void osCreatePiManager(UNUSED OSPri pri, UNUSED OSMesgQueue* cmdQ, UNUSED OSMesg
 
 s32 osPiStartDma(UNUSED OSIoMesg* mb, UNUSED s32 priority, UNUSED s32 direction, uintptr_t devAddr, void* vAddr,
                  size_t nbytes, OSMesgQueue* mq) {
-    s32 result = 0;
     if (nbytes != 0) {
-#ifdef TARGET_ANDROID
-        /*
-         * On Android, 32-bit PI addresses name bytes in the user-selected ROM.
-         * Only full-width LP64 values are real process pointers.
-         */
-        if (devAddr > UINT32_MAX) {
-            memcpy(vAddr, (const void*) devAddr, nbytes);
-        } else {
-            extern int mk64_android_dma_copy(void* destination, uintptr_t romAddress, size_t size);
-            result = mk64_android_dma_copy(vAddr, devAddr, nbytes);
-            if (result != 0) {
-                memset(vAddr, 0, nbytes);
-            }
-        }
-#else
         memcpy(vAddr, (const void*) devAddr, nbytes);
-#endif
     }
     if (mq != NULL) {
         osSendMesg(mq, NULL, OS_MESG_NOBLOCK); // completion message
     }
-    return result;
+    return 0;
 }
 
 s32 osEPiStartDma(UNUSED OSPiHandle* pihandle, OSIoMesg* mb, s32 direction) {
