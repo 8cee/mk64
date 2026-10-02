@@ -566,35 +566,11 @@ void init_segment_racing(void) {
 
 void dma_copy(u8* dest, u8* romAddr, size_t size) {
 #ifndef TARGET_N64
-#ifdef TARGET_ANDROID
-    /*
-     * Android does NOT link the cartridge into the process. ROM-domain values
-     * (raw offsets or 0x10xxxxxx cart addresses) must be served by the selected
-     * ROM image, exactly like Golden/BM64's platform ROM boundary.
-     *
-     * Full-width host pointers are still valid for data that really is linked
-     * into the native binary (generated tables, runtime buffers, etc.).
-     */
-    if (size != 0) {
-        uintptr_t source = (uintptr_t) romAddr;
-        if (source > UINT32_MAX) {
-            memcpy(dest, romAddr, size);
-        } else {
-            extern int mk64_android_dma_copy(void* destination, uintptr_t romAddress, size_t size);
-            if (mk64_android_dma_copy(dest, source, size) != 0) {
-                PORT_LOG("dma_copy failed: rom=%08X size=%u\n", (unsigned) source, (unsigned) size);
-                memset(dest, 0, size);
-            }
-        }
-    }
-    return;
-#else
-    // PSP/native cartridge data is linked into the executable.
+    // The cartridge is linked into the executable.
     if (size != 0) {
         memcpy(dest, romAddr, size);
     }
     return;
-#endif
 #endif
 
     osInvalDCache(dest, size);
