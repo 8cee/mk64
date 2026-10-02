@@ -1350,17 +1350,7 @@ static void gfx_sp_set_other_mode(uint32_t shift, uint32_t num_bits, uint64_t mo
 }
 
 static inline void *seg_addr(uintptr_t w1) {
-#ifdef TARGET_ANDROID
-    /*
-     * Fast3D command words are N64-width addresses. On the PSP port they could
-     * be used directly because host pointers fit in 32 bits; on LP64 Android
-     * they must be expanded through the port segment/token resolver.
-     */
-    extern void* port_seg_to_ptr(uintptr_t addr);
-    return port_seg_to_ptr(w1);
-#else
     return (void *) w1;
-#endif
 }
 
 #define C0(pos, width) ((cmd->words.w0 >> (pos)) & ((1U << width) - 1))
