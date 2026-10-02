@@ -180,7 +180,14 @@ u16 D_800DC514 = 0;
 u16 creditsRenderMode = 0; // Renders the whole track. Displays red if used in normal race mode.
 u16 gDemoMode = DEMO_MODE_INACTIVE;
 u16 gEnableDebugMode = ENABLE_DEBUG_MODE;
+#ifdef TARGET_ANDROID
+// Android should boot the retail title/start-menu flow, not the decomp debug
+// COURSE_DATA_MENU state (7). Starting in state 7 produces a live render loop
+// with no normal title/menu scene, which appears as a black screen.
+s32 gGamestateNext = START_MENU_FROM_QUIT;
+#else
 s32 gGamestateNext = 7; // = COURSE_DATA_MENU?;
+#endif
 UNUSED s32 D_800DC528 = 1;
 s32 gActiveScreenMode = SCREEN_MODE_1P;
 s32 gScreenModeSelection = SCREEN_MODE_1P;
