@@ -13,6 +13,7 @@ add_library(mk64_android SHARED
     host_segments.cpp
     host_message_queue.cpp
     host_gfx_commands.cpp
+    gfx_ptr_android.cpp
     android_gfx_window.cpp
     portable/gfx/gfx_pc_android.c
     portable/gfx/gfx_gles2.c
