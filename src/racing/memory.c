@@ -1029,7 +1029,17 @@ void displaylist_unpack(uintptr_t* data, uintptr_t finalDisplaylistOffset, u32 a
 
     u8 opcode;
 
+#ifdef TARGET_ANDROID
+    /*
+     * finalDisplaylistOffset is an N64 byte count (8 bytes per Gfx command).
+     * Android's live Gfx is 16 bytes so host pointers can survive LP64. Reserve
+     * twice the N64 storage here; otherwise displaylist_unpack writes past the
+     * allocation and corrupts the heap before the course list is rendered.
+     */
+    finalDisplaylistOffset = (ALIGN16(finalDisplaylistOffset) + 8) * (sizeof(Gfx) / 8);
+#else
     finalDisplaylistOffset = ALIGN16(finalDisplaylistOffset) + 8;
+#endif
     gHeapEndPtr -= finalDisplaylistOffset;
     addr = gHeapEndPtr;
     gfx = (Gfx*) gHeapEndPtr;
