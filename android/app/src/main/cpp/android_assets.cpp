@@ -9,6 +9,8 @@ void mio0decode(uint8_t* in, uint8_t* out);
 void displaylist_unpack(uintptr_t* data, uintptr_t finalDisplaylistOffset, uint32_t arg2);
 extern uintptr_t gHeapEndPtr;
 extern uintptr_t gSegmentTable[16];
+extern int32_t sGfxSeekPosition;
+extern int32_t gAndroidAssetUnpackMode;
 extern unsigned char __assets_start[];
 extern unsigned char __assets_end[];
 extern const uint8_t gAndroidMk64RecipeBlob[];
@@ -137,47 +139,82 @@ extern "C" bool mk64_android_load_assets() {
     }
 
     uintptr_t savedHeap=gHeapEndPtr;
+    const uintptr_t savedSeg7 = gSegmentTable[0x7];
+    const int32_t savedAssetUnpackMode = gAndroidAssetUnpackMode;
     for(uint32_t ci=0;ci<h->course_count;ci++){
         const Course& c=courses[ci];
         comp.resize(c.rom_len);
-        if(!read_rom(c.rom_off,comp.data(),comp.size())){gHeapEndPtr=savedHeap;return false;}
-        std::vector<uint8_t> unpack(((c.unpacked_len+15u)&~15u)+72u);
-        gHeapEndPtr=reinterpret_cast<uintptr_t>(unpack.data())+((c.unpacked_len+15u)&~15u)+8u;
+        if(!read_rom(c.rom_off,comp.data(),comp.size())){
+            gHeapEndPtr=savedHeap;
+            gSegmentTable[0x7]=savedSeg7;
+            gAndroidAssetUnpackMode=savedAssetUnpackMode;
+            return false;
+        }
 
         /*
-         * displaylist_unpack() takes an N64 segmented address, not a host
-         * pointer. Passing comp.data()+packed_off directly worked on PSP only
-         * by accident because its pointer range resembles the old 32-bit port
-         * assumptions; on ARM64 the upper address bits become a bogus segment
-         * index and crash immediately.
-         *
-         * Map this temporary packed course buffer into segment 0x0F, pass a
-         * genuine 0x0Fxxxxxx address, then restore the previous mapping.
+         * The recipe's PA_UNPACK offsets describe the original 8-byte N64/PSP
+         * command stream, but displaylist_unpack() writes Android's 16-byte Gfx.
+         * Unpack into a temporary LP64 buffer first, then repack each command to
+         * two 32-bit words before applying recipe slices to __assets_start.
          */
+        const size_t packedCapacity=((c.unpacked_len+15u)&~15u)+72u;
+        const size_t liveBytes=(((c.unpacked_len+15u)&~15u)+8u)*(sizeof(uintptr_t)*2u/8u);
+        std::vector<uint8_t> live(liveBytes+64u);
+        std::vector<uint8_t> unpack(packedCapacity);
+        gHeapEndPtr=reinterpret_cast<uintptr_t>(live.data())+liveBytes;
+
         if (c.packed_off >= c.rom_len || c.packed_off >= 0x01000000u) {
             ALOGE("course %u packed offset out of range: %08x / %08x",
                   c.course, c.packed_off, c.rom_len);
             gHeapEndPtr=savedHeap;
+            gSegmentTable[0x7]=savedSeg7;
+            gAndroidAssetUnpackMode=savedAssetUnpackMode;
             return false;
         }
+
         const uintptr_t savedSegF = gSegmentTable[0xF];
         gSegmentTable[0xF] = reinterpret_cast<uintptr_t>(comp.data());
+        gAndroidAssetUnpackMode = 1;
         const uintptr_t packedSegAddr = 0x0F000000u | c.packed_off;
         ALOGI("course %u unpack begin packed=%08x unpacked=%u",
               c.course, (unsigned)packedSegAddr, c.unpacked_len);
         displaylist_unpack(reinterpret_cast<uintptr_t*>(packedSegAddr),c.unpacked_len,0);
         gSegmentTable[0xF] = savedSegF;
-        ALOGI("course %u unpack complete", c.course);
+
+        const size_t commandCount = static_cast<size_t>(sGfxSeekPosition);
+        if (commandCount * 8u > unpack.size()) {
+            ALOGE("course %u unpack overflow: %zu commands into %zu packed bytes",
+                  c.course, commandCount, unpack.size());
+            gHeapEndPtr=savedHeap;
+            gSegmentTable[0x7]=savedSeg7;
+            gAndroidAssetUnpackMode=savedAssetUnpackMode;
+            return false;
+        }
+        const auto* liveGfx = reinterpret_cast<const uintptr_t*>(live.data());
+        for(size_t cmd=0;cmd<commandCount;cmd++){
+            const uint32_t w0=static_cast<uint32_t>(liveGfx[cmd*2u+0u]);
+            const uint32_t w1=static_cast<uint32_t>(liveGfx[cmd*2u+1u]);
+            std::memcpy(unpack.data()+cmd*8u+0u,&w0,sizeof(w0));
+            std::memcpy(unpack.data()+cmd*8u+4u,&w1,sizeof(w1));
+        }
+        ALOGI("course %u unpack complete (%zu commands)", c.course, commandCount);
 
         for(uint32_t i=0;i<h->recipe_count;i++){
             const Recipe& r=recs[i];
             if(r.kind==PA_UNPACK && r.src==c.course){
-                if((uint64_t)r.extra+r.size>unpack.size()){gHeapEndPtr=savedHeap;return false;}
+                if((uint64_t)r.extra+r.size>unpack.size()){
+                    gHeapEndPtr=savedHeap;
+                    gSegmentTable[0x7]=savedSeg7;
+                    gAndroidAssetUnpackMode=savedAssetUnpackMode;
+                    return false;
+                }
                 std::memcpy(__assets_start+r.dst,unpack.data()+r.extra,r.size);
             }
         }
     }
     gHeapEndPtr=savedHeap;
+    gSegmentTable[0x7]=savedSeg7;
+    gAndroidAssetUnpackMode=savedAssetUnpackMode;
 
     for(uint32_t i=0;i<h->reloc_count;i++){
         uint32_t off=relocs[i].off;
