@@ -16,7 +16,6 @@ add_library(mk64_android SHARED
     android_gfx_window.cpp
     gfx_ptr_android.cpp
     portable/gfx/gfx_pc_android.c
-    portable/gfx/gfx_gles2.c
     game_runtime.cpp
     portable/ultra_shim.c
     ../../../../../src/port/segments.c
