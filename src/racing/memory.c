@@ -91,7 +91,16 @@ void* get_next_available_memory_addr(uintptr_t size) {
  * @return The stored base address, truncated to a 29-bit value.
  */
 uintptr_t set_segment_base_addr(s32 segment, void* addr) {
+#ifdef TARGET_ANDROID
+    /*
+     * Android is LP64. Keep the complete host address here; masking to the
+     * N64's 29-bit physical address space destroys ASLR pointers before the
+     * Android display-list resolver gets a chance to encode/resolve them.
+     */
+    gSegmentTable[segment] = (uintptr_t) addr;
+#else
     gSegmentTable[segment] = (uintptr_t) addr & 0x1FFFFFFF;
+#endif
     return gSegmentTable[segment];
 }
 
@@ -100,17 +109,26 @@ uintptr_t set_segment_base_addr(s32 segment, void* addr) {
  * @param permits segment numbers from 0x0 to 0xF.
  */
 void* get_segment_base_addr(s32 segment) {
+#ifdef TARGET_ANDROID
+    return (void*) gSegmentTable[segment];
+#else
     return (void*) (gSegmentTable[segment] | 0x80000000);
+#endif
 }
 
 /**
  * @brief converts an RSP segment + offset address to a normal memory address
  */
 void* segmented_to_virtual(const void* addr) {
+#ifdef TARGET_ANDROID
+    extern void* port_seg_to_ptr(uintptr_t addr);
+    return port_seg_to_ptr((uintptr_t) addr);
+#else
     size_t segment = (uintptr_t) addr >> 24;
     size_t offset = (uintptr_t) addr & 0x00FFFFFF;
 
     return (void*) ((gSegmentTable[segment] + offset) | 0x80000000);
+#endif
 }
 
 void move_segment_table_to_dmem(void) {
