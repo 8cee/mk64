@@ -3949,13 +3949,13 @@ s32 animate_character_select_menu(MkAnimation* anim) {
     entry->visible = 0x80000000;
     entry->menuTextureIndex = sMenuTextureEntries;
 
-    if (anim[0].mk64Texture) {
-        load_menu_img_mio0_forced(anim[0].mk64Texture);
+    if (MK_ANIMATION_TEXTURE_PTR(&anim[0])) {
+        load_menu_img_mio0_forced(MK_ANIMATION_TEXTURE_PTR(&anim[0]));
     }
-    if (anim[1].mk64Texture) {
-        load_menu_img_mio0_forced(anim[1].mk64Texture);
+    if (MK_ANIMATION_TEXTURE_PTR(&anim[1])) {
+        load_menu_img_mio0_forced(MK_ANIMATION_TEXTURE_PTR(&anim[1]));
     } else {
-        load_menu_img_mio0_forced(anim[0].mk64Texture);
+        load_menu_img_mio0_forced(MK_ANIMATION_TEXTURE_PTR(&anim[0]));
     }
 
     entry->unk14 = 0;
@@ -3984,13 +3984,13 @@ s32 func_8009A478(MkAnimation* anim, s32 arg1) {
     entry->frameCountDown = 0;
     entry->visible = 0x80000000;
     entry->menuTextureIndex = sMenuTextureEntries;
-    if (anim[0].mk64Texture) {
-        func_80099958(anim[0].mk64Texture, arg1, 0);
+    if (MK_ANIMATION_TEXTURE_PTR(&anim[0])) {
+        func_80099958(MK_ANIMATION_TEXTURE_PTR(&anim[0]), arg1, 0);
     }
-    if (anim[1].mk64Texture) {
-        func_80099958(anim[1].mk64Texture, arg1, 1);
+    if (MK_ANIMATION_TEXTURE_PTR(&anim[1])) {
+        func_80099958(MK_ANIMATION_TEXTURE_PTR(&anim[1]), arg1, 1);
     } else {
-        func_80099958(anim[0].mk64Texture, arg1, 1);
+        func_80099958(MK_ANIMATION_TEXTURE_PTR(&anim[0]), arg1, 1);
     }
     entry->unk14 = 0;
     return i;
@@ -4006,7 +4006,7 @@ void func_8009A594(s32 arg0, s32 arg1, MkAnimation* arg2) {
     // All hail the fake match gods who, in their infinite grace, have blessed us
     // with this enigma of a match on the first iteration of permutation
     D_8018DEE0[arg0].frameCountDown = (temp_v0 + arg1)->frame_length;
-    temp_a0 = segmented_to_virtual_dupe(temp_v0[arg1].mk64Texture);
+    temp_a0 = segmented_to_virtual_dupe(MK_ANIMATION_TEXTURE_PTR(&temp_v0[arg1]));
     if (D_8018DEE0[arg0].unk14 != 0) {
         func_80099A94(temp_a0, D_8018DEE0[arg0].menuTextureIndex);
         D_8018DEE0[arg0].unk14 = 0;
@@ -4024,7 +4024,7 @@ void func_8009A640(s32 arg0, s32 arg1, s32 arg2, MkAnimation* arg3) {
     D_8018DEE0[arg0].textureSequence = temp_v0;
     D_8018DEE0[arg0].sequenceIndex = arg1;
     D_8018DEE0[arg0].frameCountDown = (temp_v0 + arg1)->frame_length;
-    temp_a0 = segmented_to_virtual_dupe(temp_v0[arg1].mk64Texture);
+    temp_a0 = segmented_to_virtual_dupe(MK_ANIMATION_TEXTURE_PTR(&temp_v0[arg1]));
     D_8018DEE0[arg0].unk14 ^= 1;
     func_80099E60(temp_a0, arg2, D_8018DEE0[arg0].unk14);
 }
@@ -4072,12 +4072,12 @@ MenuTexture* func_8009A878(struct_8018DEE0_entry* arg0) {
         arg0->sequenceIndex++;
         // Again, hail the fake match gods
         var_v0 = ((test = temp_v1) + arg0->sequenceIndex);
-        if (var_v0->mk64Texture == NULL) {
+        if (MK_ANIMATION_TEXTURE_PTR(var_v0) == NULL) {
             arg0->sequenceIndex = 0;
         }
         var_v0 = (test + arg0->sequenceIndex);
         arg0->frameCountDown = var_v0->frame_length;
-        temp_a0 = segmented_to_virtual_dupe(var_v0->mk64Texture);
+        temp_a0 = segmented_to_virtual_dupe(MK_ANIMATION_TEXTURE_PTR(var_v0));
         if (arg0->unk14 != 0) {
             func_80099A94(temp_a0, arg0->menuTextureIndex);
             arg0->unk14 = 0;
@@ -4086,7 +4086,7 @@ MenuTexture* func_8009A878(struct_8018DEE0_entry* arg0) {
             arg0->unk14 = 1;
         }
     }
-    return arg0->textureSequence[arg0->sequenceIndex].mk64Texture;
+    return MK_ANIMATION_TEXTURE_PTR(&arg0->textureSequence[arg0->sequenceIndex]);
 }
 
 MenuTexture* func_8009A944(struct_8018DEE0_entry* arg0, s32 arg1) {
@@ -4104,16 +4104,16 @@ MenuTexture* func_8009A944(struct_8018DEE0_entry* arg0, s32 arg1) {
     if (arg0->frameCountDown <= 0) {
         arg0->sequenceIndex++;
         var_v0 = ((test = temp_v1) + arg0->sequenceIndex);
-        if (var_v0->mk64Texture == NULL) {
+        if (MK_ANIMATION_TEXTURE_PTR(var_v0) == NULL) {
             arg0->sequenceIndex = 0;
         }
         var_v0 = (test + arg0->sequenceIndex);
         arg0->frameCountDown = var_v0->frame_length;
-        temp_a0 = segmented_to_virtual_dupe(var_v0->mk64Texture);
+        temp_a0 = segmented_to_virtual_dupe(MK_ANIMATION_TEXTURE_PTR(var_v0));
         arg0->unk14 ^= 1;
         func_80099E60(temp_a0, arg1, arg0->unk14);
     }
-    return arg0->textureSequence[arg0->sequenceIndex].mk64Texture;
+    return MK_ANIMATION_TEXTURE_PTR(&arg0->textureSequence[arg0->sequenceIndex]);
 }
 
 void func_8009A9FC(s32 arg0, s32 arg1, u32 arg2, s32 arg3) {
@@ -4508,7 +4508,7 @@ Gfx* func_8009C434(Gfx* arg0, struct_8018DEE0_entry* arg1, s32 arg2, s32 arg3, s
     Gfx* temp;
     MenuTexture* var_s0;
 
-    var_s0 = segmented_to_virtual_dupe(arg1->textureSequence[arg1->sequenceIndex].mk64Texture);
+    var_s0 = segmented_to_virtual_dupe(MK_ANIMATION_TEXTURE_PTR(&arg1->textureSequence[arg1->sequenceIndex]));
     temp = D_02007728;
     while (MENU_TEXTURE_DATA_PTR(var_s0) != NULL) {
         var_t1 = 0;
@@ -4564,7 +4564,7 @@ Gfx* func_8009C708(Gfx* arg0, struct_8018DEE0_entry* arg1, s32 arg2, s32 arg3, s
     Gfx* temp;
     MenuTexture* var_s1;
 
-    var_s1 = segmented_to_virtual_dupe(arg1->textureSequence[arg1->sequenceIndex].mk64Texture);
+    var_s1 = segmented_to_virtual_dupe(MK_ANIMATION_TEXTURE_PTR(&arg1->textureSequence[arg1->sequenceIndex]));
     temp = D_02007728;
     while (MENU_TEXTURE_DATA_PTR(var_s1) != NULL) {
         var_t0 = 0;
