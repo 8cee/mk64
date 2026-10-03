@@ -147,7 +147,10 @@ static void depth(bool v){v?glEnable(GL_DEPTH_TEST):glDisable(GL_DEPTH_TEST);}
 static void dmask(bool v){glDepthMask(v?GL_TRUE:GL_FALSE);}
 static void decal(bool v){if(v){glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(-2.f,-2.f);}else{glDisable(GL_POLYGON_OFFSET_FILL);}}
 static void viewport(int x,int y,int w,int h){glViewport(x,y,w,h);}
-static void scissor(int x,int y,int w,int h){glEnable(GL_SCISSOR_TEST);glScissor(x,y,w,h);}
+static void scissor(int x,int y,int w,int h){
+    glScissor(x,y,w,h);
+    glEnable(GL_SCISSOR_TEST);
+}
 static void alpha(bool v){v?glEnable(GL_BLEND):glDisable(GL_BLEND);}
 static void draw(float* b,size_t len,size_t tris){if(!gCurrent||!gCurrent->program||!tris)return;glBindBuffer(GL_ARRAY_BUFFER,gVbo);glBufferData(GL_ARRAY_BUFFER,len*sizeof(float),b,GL_STREAM_DRAW);attribs(gCurrent);glDrawArrays(GL_TRIANGLES,0,(GLsizei)(tris*3));}
 static void init(){if(!gVbo)glGenBuffers(1,&gVbo);glBindBuffer(GL_ARRAY_BUFFER,gVbo);glDepthFunc(GL_LEQUAL);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);}
