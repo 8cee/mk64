@@ -152,7 +152,18 @@ static void alpha(bool v){v?glEnable(GL_BLEND):glDisable(GL_BLEND);}
 static void draw(float* b,size_t len,size_t tris){if(!gCurrent||!gCurrent->program||!tris)return;glBindBuffer(GL_ARRAY_BUFFER,gVbo);glBufferData(GL_ARRAY_BUFFER,len*sizeof(float),b,GL_STREAM_DRAW);attribs(gCurrent);glDrawArrays(GL_TRIANGLES,0,(GLsizei)(tris*3));}
 static void init(){if(!gVbo)glGenBuffers(1,&gVbo);glBindBuffer(GL_ARRAY_BUFFER,gVbo);glDepthFunc(GL_LEQUAL);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);}
 static void resize(){}
-static void start(){glDisable(GL_SCISSOR_TEST);glDepthMask(GL_TRUE);glClearColor(0,0,0,1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);glEnable(GL_SCISSOR_TEST);}
+static void start(){
+    /*
+     * Clear with scissoring disabled, but do not enable GL_SCISSOR_TEST again
+     * until the display list actually supplies a valid N64 scissor rectangle.
+     * Enabling it here leaves the default GLES scissor box at 0x0 on a fresh
+     * context, which clips every draw before the first G_SETSCISSOR command.
+     */
+    glDisable(GL_SCISSOR_TEST);
+    glDepthMask(GL_TRUE);
+    glClearColor(0,0,0,1);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+}
 static void end(){}
 static void finish(){glFinish();}
 
