@@ -14,6 +14,13 @@
 
 s32 sGfxSeekPosition;
 s32 sPackedSeekPosition;
+#ifdef TARGET_ANDROID
+/*
+ * Asset reconstruction needs the original N64/PSP 8-byte segment-7 offsets
+ * even though the temporary unpack buffer itself uses Android's 16-byte Gfx.
+ */
+s32 gAndroidAssetUnpackMode;
+#endif
 
 uintptr_t sPoolFreeSpace;
 struct MainPoolBlock* sPoolListHeadL;
@@ -559,7 +566,7 @@ void unpack_displaylist(Gfx* arg0, u8* args, UNUSED s8 opcode) {
     uintptr_t temp_v0 = args[sPackedSeekPosition++];
     uintptr_t commandIndex = ((args[sPackedSeekPosition++]) << 8 | temp_v0);
 #ifdef TARGET_ANDROID
-    uintptr_t temp_t7 = commandIndex * sizeof(Gfx);
+    uintptr_t temp_t7 = commandIndex * (gAndroidAssetUnpackMode ? 8u : sizeof(Gfx));
 #else
     uintptr_t temp_t7 = commandIndex * 8;
 #endif
