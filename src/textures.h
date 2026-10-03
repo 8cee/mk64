@@ -35,6 +35,14 @@ typedef struct {
     /* 0x04 */ s32 frame_length;
 } MkAnimation; // size = 0x8
 
+#ifdef TARGET_ANDROID
+#define MENU_TEXTURE_DATA_PTR(tex) ((u64*) (uintptr_t) ((tex)->textureData))
+#define MK_ANIMATION_TEXTURE_PTR(anim) ((MenuTexture*) (uintptr_t) ((anim)->mk64Texture))
+#else
+#define MENU_TEXTURE_DATA_PTR(tex) ((tex)->textureData)
+#define MK_ANIMATION_TEXTURE_PTR(anim) ((anim)->mk64Texture)
+#endif
+
 extern MenuTexture D_02000000[2];
 extern MenuTexture D_02000028[2];
 extern MenuTexture D_02000050[2];
