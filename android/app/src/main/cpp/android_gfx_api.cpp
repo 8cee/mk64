@@ -178,9 +178,17 @@ static void start(){
      * context, which clips every draw before the first G_SETSCISSOR command.
      */
     glDisable(GL_SCISSOR_TEST);
+    /*
+     * Preserve the renderer-owned depth-write state. Temporarily enable depth
+     * writes only for the clear, then restore the actual GL value so
+     * gfx_pc_android.c's cached depth_mask remains synchronized across frames.
+     */
+    GLboolean depthWrite = GL_FALSE;
+    glGetBooleanv(GL_DEPTH_WRITEMASK, &depthWrite);
     glDepthMask(GL_TRUE);
     glClearColor(0,0,0,1);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+    glDepthMask(depthWrite);
 }
 static void end(){}
 static void finish(){glFinish();}
