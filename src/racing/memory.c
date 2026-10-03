@@ -1339,10 +1339,21 @@ void displaylist_unpack(uintptr_t* data, uintptr_t finalDisplaylistOffset, u32 a
 }
 
 struct UnkStr_802AA7C8 {
+#ifdef TARGET_ANDROID
+    /*
+     * This table is reconstructed from the original 32-bit asset image.
+     * Keep its on-wire layout at 16 bytes on LP64 Android.
+     */
+    u32 unk0;
+    u32 unk4;
+    u32 unk8;
+    u32 unkC;
+#else
     u8* unk0;
     uintptr_t unk4;
     uintptr_t unk8;
     uintptr_t unkC;
+#endif
 };
 
 void decompress_textures(u32* arg0) {
@@ -1358,7 +1369,11 @@ void decompress_textures(u32* arg0) {
     phi_v0 = 0;
     temp_s0 = phi_s0;
     while (true) {
+#ifdef TARGET_ANDROID
+        temp_a0 = (u8*) (uintptr_t) phi_s0->unk0;
+#else
         temp_a0 = phi_s0->unk0;
+#endif
         if ((temp_a0) == 0) {
             break;
         }
@@ -1370,7 +1385,11 @@ void decompress_textures(u32* arg0) {
     sp20 = gHeapEndPtr;
 
     while (true) {
+#ifdef TARGET_ANDROID
+        temp_a0 = (u8*) (uintptr_t) phi_s0->unk0;
+#else
         temp_a0 = phi_s0->unk0;
+#endif
         if ((temp_a0) == 0) {
             break;
         }
