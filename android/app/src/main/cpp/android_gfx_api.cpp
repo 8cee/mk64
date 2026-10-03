@@ -98,6 +98,7 @@ static ShaderProgram* create(uint32_t id){
     }
     if(f.used_textures[0]) fs+="uniform sampler2D uTex0;\n";
     if(f.used_textures[1]) fs+="uniform sampler2D uTex1;\n";
+    if(f.opt_noise) fs+="float random(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}\n";
     vs+="void main(){";
     if(f.used_textures[0]||f.used_textures[1]) vs+="vTexCoord=aTexCoord;";
     if(f.opt_fog) vs+="vFog=aFog;";
@@ -111,6 +112,7 @@ static ShaderProgram* create(uint32_t id){
         if(!f.color_alpha_same) fs+="vec4 texel=vec4("+formula(f,0,false,false)+","+formula(f,1,true,true)+");";
         else fs+="vec4 texel="+formula(f,0,true,false)+";";
         if(f.opt_texture_edge) fs+="if(texel.a>0.3) texel.a=1.0; else discard;";
+        if(f.opt_noise) fs+="texel.a*=floor(random(gl_FragCoord.xy)+texel.a);";
         if(f.opt_fog) fs+="texel=vec4(mix(texel.rgb,vFog.rgb,vFog.a),texel.a);";
         fs+="gl_FragColor=texel;";
     }else{
