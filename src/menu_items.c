@@ -3452,17 +3452,27 @@ void clear_menu_textures(void) {
  * @return void*
  */
 void* segmented_to_virtual_dupe(const void* addr) {
+#ifdef TARGET_ANDROID
+    extern void* port_seg_to_ptr(uintptr_t addr);
+    return port_seg_to_ptr((uintptr_t) addr);
+#else
     size_t segment = (uintptr_t) addr >> 24;
     size_t offset = (uintptr_t) addr & 0x00FFFFFF;
 
     return (void*) ((gSegmentTable[segment] + offset) + 0x80000000);
+#endif
 }
 
 void* segmented_to_virtual_dupe_2(const void* addr) {
+#ifdef TARGET_ANDROID
+    extern void* port_seg_to_ptr(uintptr_t addr);
+    return port_seg_to_ptr((uintptr_t) addr);
+#else
     size_t segment = (uintptr_t) addr >> 24;
     size_t offset = (uintptr_t) addr & 0x00FFFFFF;
 
     return (void*) ((gSegmentTable[segment] + offset) + 0x80000000);
+#endif
 }
 
 void load_menu_img(MenuTexture* addr) {
