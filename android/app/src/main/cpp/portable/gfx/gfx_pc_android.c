@@ -1352,6 +1352,7 @@ static void gfx_sp_set_other_mode(uint32_t shift, uint32_t num_bits, uint64_t mo
 extern unsigned char __assets_start[];
 extern unsigned char __assets_end[];
 extern void* port_seg_to_ptr(uintptr_t addr);
+extern void* port_gfx_ptr_resolve(uint32_t token);
 
 static inline bool gfx_cmd_is_packed(const void *p) {
     const uintptr_t a = (uintptr_t)p;
@@ -1378,11 +1379,13 @@ static inline void *gfx_cmd_next(void *p) {
 
 static inline void *seg_addr(uintptr_t w1) {
 #if UINTPTR_MAX > UINT32_MAX
-    if (w1 > UINT32_MAX) {
-        return (void *)w1;
-    }
+    if (w1 > UINT32_MAX) return (void *)w1;
 #endif
-    return port_seg_to_ptr(w1);
+    const uint32_t token = (uint32_t)w1;
+    const uint32_t prefix = token & 0xFF000000u;
+    if (prefix == 0xFE000000u) return port_gfx_ptr_resolve(token);
+    if (prefix == 0x7F000000u || (token >> 24) < 16u) return port_seg_to_ptr(token);
+    return port_gfx_ptr_resolve(token);
 }
 
 #define CMD0 (gfx_cmd_w0(cmd))
