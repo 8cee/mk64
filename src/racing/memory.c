@@ -557,7 +557,12 @@ void unpack_lights(Gfx* arg0, UNUSED u8* arg1, s8 arg2) {
 
 void unpack_displaylist(Gfx* arg0, u8* args, UNUSED s8 opcode) {
     uintptr_t temp_v0 = args[sPackedSeekPosition++];
-    uintptr_t temp_t7 = ((args[sPackedSeekPosition++]) << 8 | temp_v0) * 8;
+    uintptr_t commandIndex = ((args[sPackedSeekPosition++]) << 8 | temp_v0);
+#ifdef TARGET_ANDROID
+    uintptr_t temp_t7 = commandIndex * sizeof(Gfx);
+#else
+    uintptr_t temp_t7 = commandIndex * 8;
+#endif
     arg0[sGfxSeekPosition].words.w0 = 0x06000000;
     // Segment seven addr
     arg0[sGfxSeekPosition].words.w1 = 0x07000000 + temp_t7;
@@ -1025,7 +1030,7 @@ void displaylist_unpack(uintptr_t* data, uintptr_t finalDisplaylistOffset, u32 a
     u8* packed_dl = VIRTUAL_TO_PHYSICAL2(gSegmentTable[segment] + offset);
 
     Gfx* gfx;
-    u32 addr;
+    uintptr_t addr;
 
     u8 opcode;
 
