@@ -14,6 +14,7 @@ add_library(mk64_android SHARED
     host_message_queue.cpp
     host_gfx_commands.cpp
     android_gfx_window.cpp
+    android_gfx_api.cpp
     gfx_ptr_android.cpp
     portable/gfx/gfx_pc_android.c
     game_runtime.cpp
