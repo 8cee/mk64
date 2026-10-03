@@ -70,8 +70,11 @@ static void attribs(ShaderProgram* p){
     if(!p) return;
     size_t off=0;
     for(int i=0;i<p->num_attribs;i++){
-        glEnableVertexAttribArray(p->attrib_locations[i]);
-        glVertexAttribPointer(p->attrib_locations[i],p->attrib_sizes[i],GL_FLOAT,GL_FALSE,p->num_floats*sizeof(float),(void*)(off*sizeof(float)));
+        const GLint loc = p->attrib_locations[i];
+        if(loc >= 0) {
+            glEnableVertexAttribArray((GLuint)loc);
+            glVertexAttribPointer((GLuint)loc,p->attrib_sizes[i],GL_FLOAT,GL_FALSE,p->num_floats*sizeof(float),(void*)(off*sizeof(float)));
+        }
         off+=p->attrib_sizes[i];
     }
 }
