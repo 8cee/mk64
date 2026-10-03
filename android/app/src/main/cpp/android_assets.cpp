@@ -70,6 +70,20 @@ extern "C" bool mk64_android_load_assets() {
     const size_t regionSize=static_cast<size_t>(__assets_end-__assets_start);
     if(regionSize!=h->region_size){ALOGE("region mismatch %zu vs %u",regionSize,h->region_size);return false;}
 
+    /*
+     * The Android symbol map and this reconstruction recipe must describe the
+     * same portable asset image.  A size match alone is not sufficient: an
+     * updated PSP recipe with the old checked-in symbol offsets can otherwise
+     * reconstruct successfully and then resolve thousands of pointers to the
+     * wrong objects.  Keep the expected recipe CRC beside the symbol map and
+     * fail before game initialization if the two inputs drift apart.
+     */
+    constexpr uint32_t kExpectedPortableDataCrc = 0xCA17590Au;
+    if (h->data_crc != kExpectedPortableDataCrc) {
+        ALOGE("recipe/symbol-map CRC mismatch: %08x vs %08x", h->data_crc, kExpectedPortableDataCrc);
+        return false;
+    }
+
     const uint8_t* p=gAndroidMk64RecipeBlob+sizeof(Header);
     const auto* recs=reinterpret_cast<const Recipe*>(p); p+=h->recipe_count*sizeof(Recipe);
     const uint8_t* literals=p; p+=(h->literal_size+3u)&~3u;
