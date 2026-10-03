@@ -9,7 +9,11 @@
  */
 typedef struct {
     /* 0x00 */ s16 type;
+#ifdef TARGET_ANDROID
+    /* 0x04 */ u32 textureData; // Packed 32-bit segmented/token address in asset data
+#else
     /* 0x04 */ u64* textureData; // This should be interpreted as a segmented address
+#endif
     /* 0x08 */ u16 width;
     /* 0x0A */ u16 height;
     /* 0x0C */ u16 dX;
@@ -23,7 +27,11 @@ typedef struct {
  *
  */
 typedef struct {
+#ifdef TARGET_ANDROID
+    /* 0x00 */ u32 mk64Texture; // Packed 32-bit segmented/token address in asset data
+#else
     /* 0x00 */ MenuTexture* mk64Texture; // This should be interpreted as a segmented address
+#endif
     /* 0x04 */ s32 frame_length;
 } MkAnimation; // size = 0x8
 
