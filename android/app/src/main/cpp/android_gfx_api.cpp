@@ -153,6 +153,13 @@ static void dmask(bool v){glDepthMask(v?GL_TRUE:GL_FALSE);}
 static void decal(bool v){if(v){glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(-2.f,-2.f);}else{glDisable(GL_POLYGON_OFFSET_FILL);}}
 static void viewport(int x,int y,int w,int h){glViewport(x,y,w,h);}
 static void scissor(int x,int y,int w,int h){
+    /* An empty N64 scissor must not turn GLES into a permanent 0x0 clip.
+     * Some MK64 display-list transitions emit a degenerate rectangle before
+     * the next valid G_SETSCISSOR. Keep drawing unclipped until it is valid. */
+    if (w <= 0 || h <= 0) {
+        glDisable(GL_SCISSOR_TEST);
+        return;
+    }
     glScissor(x,y,w,h);
     glEnable(GL_SCISSOR_TEST);
 }
