@@ -243,6 +243,13 @@ static struct ColorCombiner *gfx_lookup_or_create_color_combiner(uint32_t cc_id)
         }
     }
     gfx_flush();
+    /* Never walk past the fixed combiner cache.  A corrupt/unsupported display
+     * list can otherwise turn a rendering bug into native memory corruption.
+     * Recycle the cache at a frame-safe flush boundary instead. */
+    if (color_combiner_pool_size >= sizeof(color_combiner_pool) / sizeof(color_combiner_pool[0])) {
+        color_combiner_pool_size = 0;
+        prev_combiner = NULL;
+    }
     struct ColorCombiner *comb = &color_combiner_pool[color_combiner_pool_size++];
     gfx_generate_cc(comb, cc_id);
     return prev_combiner = comb;
