@@ -480,10 +480,13 @@ static void gfx_opengl_on_resize(void) {
 static void gfx_opengl_start_frame(void) {
     frame_count++;
 
+    GLboolean previous_depth_mask = GL_TRUE;
+    glGetBooleanv(GL_DEPTH_WRITEMASK, &previous_depth_mask);
     glDisable(GL_SCISSOR_TEST);
-    glDepthMask(GL_TRUE); // Must be set to clear Z-buffer
+    glDepthMask(GL_TRUE); // Depth writes must be enabled for glClear.
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glDepthMask(previous_depth_mask); // Keep GL state in sync with the renderer cache.
     glEnable(GL_SCISSOR_TEST);
 }
 
