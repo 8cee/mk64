@@ -75,8 +75,8 @@ struct ColorCombiner {
     uint8_t shader_input_mapping[2][4];
 };
 
-static struct ColorCombiner color_combiner_pool[64];
-static uint8_t color_combiner_pool_size;
+static struct ColorCombiner color_combiner_pool[512];
+static size_t color_combiner_pool_size;
 
 static struct RSP {
     float modelview_matrix_stack[11][4][4];
