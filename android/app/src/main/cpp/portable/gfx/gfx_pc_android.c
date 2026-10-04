@@ -1470,6 +1470,14 @@ static void gfx_run_dl(void* cmd) {
                 gfx_sp_geometry_mode(CMD1, 0);
                 break;
 #endif
+#if defined(F3DEX_GBI) && defined(F3D_OLD)
+            case (uint8_t)G_QUAD:
+                // The early F3DEX quadrangle packs four doubled vertex indices
+                // into w1: v3, v0, v1, v2. MK64's course unpacker emits it.
+                gfx_sp_tri1(C1(16, 8) / 2, C1(8, 8) / 2, C1(0, 8) / 2);
+                gfx_sp_tri1(C1(16, 8) / 2, C1(0, 8) / 2, C1(24, 8) / 2);
+                break;
+#endif
             case (uint8_t)G_TRI1:
 #ifdef F3DEX_GBI_2
                 gfx_sp_tri1(C0(16, 8) / 2, C0(8, 8) / 2, C0(0, 8) / 2);
