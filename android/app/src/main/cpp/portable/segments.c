@@ -128,9 +128,20 @@ void* port_seg_to_ptr(uintptr_t addr) {
     u32 offset;
     const PortSegTable* table;
 
+#ifdef TARGET_ANDROID
+    /* Android uses 64-bit native pointers, while N64 segmented addresses
+     * 0x09xxxxxx through 0x0Fxxxxxx overlap the PSP RAM address range.
+     * Preserve genuine native pointers without swallowing these segments. */
+#if UINTPTR_MAX > UINT32_MAX
+    if (addr > UINT32_MAX) {
+        return (void*) addr;
+    }
+#endif
+#else
     if (addr >= 0x08800000u) {
         return (void*) addr; // already a PSP pointer
     }
+#endif
     segment = addr >> 24;
     offset = addr & 0x00FFFFFF;
     if (segment >= 16) {
