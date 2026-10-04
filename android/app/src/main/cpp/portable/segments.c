@@ -129,6 +129,16 @@ void* port_seg_to_ptr(uintptr_t addr) {
     const PortSegTable* table;
 
 #ifdef TARGET_ANDROID
+    /* Reconstructed 32-bit asset pointers use 0x7Fxxxxxx relocation tokens.
+     * They are offsets into the embedded image, not native addresses or
+     * ordinary N64 segments (see android_assets.cpp PA_RELOCS). */
+    if (addr <= UINT32_MAX && (addr & 0xFF000000u) == 0x7F000000u) {
+        extern unsigned char __assets_start[];
+        extern unsigned char __assets_end[];
+        const uintptr_t asset_offset = addr & 0x00FFFFFFu;
+        const uintptr_t asset_size = (uintptr_t)(__assets_end - __assets_start);
+        return asset_offset < asset_size ? (void*)(__assets_start + asset_offset) : NULL;
+    }
     /* Android uses 64-bit native pointers, while N64 segmented addresses
      * 0x09xxxxxx through 0x0Fxxxxxx overlap the PSP RAM address range.
      * Preserve genuine native pointers without swallowing these segments. */
