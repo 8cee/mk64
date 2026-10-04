@@ -31,8 +31,8 @@ struct ShaderProgram {
     GLint window_height_location;
 };
 
-static struct ShaderProgram shader_program_pool[64];
-static uint8_t shader_program_pool_size;
+static struct ShaderProgram shader_program_pool[512];
+static size_t shader_program_pool_size;
 static GLuint opengl_vbo;
 
 static uint32_t frame_count;
@@ -157,8 +157,8 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(uint32_t shad
     struct CCFeatures cc_features;
     gfx_cc_get_features(shader_id, &cc_features);
 
-    char vs_buf[1024];
-    char fs_buf[1024];
+    char vs_buf[8192];
+    char fs_buf[8192];
     size_t vs_len = 0;
     size_t fs_len = 0;
     size_t num_floats = 4;
