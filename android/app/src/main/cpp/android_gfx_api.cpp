@@ -27,6 +27,16 @@ static GLuint gVbo = 0;
 
 static bool z01(){ return false; }
 
+extern "C" void mk64_android_gfx_context_lost(void) {
+    // GLSurfaceView may recreate its EGL context while the native game runtime
+    // remains alive. All cached GLES object names then refer to the old context.
+    // Drop them without glDelete*: those names are invalid in the new context.
+    gShaders.clear();
+    gCurrent = nullptr;
+    gVbo = 0;
+    GLOGE("EGL context recreated: cleared cached GLES objects");
+}
+
 static std::string item(uint32_t v, bool alpha, bool onlyAlpha, bool inputsAlpha) {
     if (onlyAlpha) {
         switch(v) {
