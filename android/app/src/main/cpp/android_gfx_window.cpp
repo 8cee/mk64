@@ -7,6 +7,7 @@ extern "C" {
 #include <PR/gbi.h>
 
 extern struct GfxRenderingAPI mk64_android_gfx_api;
+void mk64_android_gfx_context_lost(void);
 
 static std::atomic<unsigned> sWidth{1280};
 static std::atomic<unsigned> sHeight{720};
@@ -38,6 +39,13 @@ static struct GfxWindowManagerAPI sAndroidWm = {
 void mk64_android_gfx_set_size(unsigned w, unsigned h) {
     if (w) sWidth = w;
     if (h) sHeight = h;
+}
+
+void mk64_android_gfx_surface_created(void) {
+    if (sGfxInitialized) {
+        mk64_android_gfx_context_lost();
+        sGfxInitialized = false;
+    }
 }
 
 void mk64_android_gfx_ensure_init(void) {
