@@ -19,6 +19,7 @@
 #define MK64_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "MK64", __VA_ARGS__)
 
 extern "C" void mk64_android_gfx_set_size(unsigned width, unsigned height);
+extern "C" void mk64_android_gfx_surface_created(void);
 extern "C" bool mk64_android_load_assets();
 
 namespace {
@@ -232,6 +233,7 @@ extern "C" int mk64_android_dma_copy(void* destination, uintptr_t romAddress, si
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_eightcee_mk64_Mk64Surface_nativeSurfaceCreated(JNIEnv*, jobject) {
+    mk64_android_gfx_surface_created();
     glDisable(GL_DITHER);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
