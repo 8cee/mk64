@@ -89,4 +89,117 @@ replace("src/port/ui/PortMenu.cpp",
 
     AddWidget(path, "Internal Resolution: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)''')
 
+
+# Android typically has a native 48 kHz output path. The old 26800 Hz
+# SDL device rate is resampled by Android, while a fixed 896-frame
+# submission cadence leaves no margin for audio scheduling jitter.
+# Generate 1600 frames per 30 Hz game tick at 48 kHz instead.
+replace("src/port/Engine.h",
+'''#define SAMPLES_HIGH 448
+#define SAMPLES_LOW 432''',
+'''#ifdef __ANDROID__
+#define SAMPLES_HIGH 800
+#define SAMPLES_LOW 784
+#else
+#define SAMPLES_HIGH 448
+#define SAMPLES_LOW 432
+#endif''')
+
+replace("src/port/Engine.cpp",
+'''this->context->Init({assets_path}, {}, 3, { 26800, 512, 1100 }, wnd, controlDeck);''',
+'''#ifdef __ANDROID__
+    this->context->Init({assets_path}, {}, 3, { 48000, 1024, 3200 }, wnd, controlDeck);
+#else
+    this->context->Init({assets_path}, {}, 3, { 26800, 512, 1100 }, wnd, controlDeck);
+#endif''')
+
+replace("libultraship/src/ship/audio/SDLAudioPlayer.cpp",
+'''    SDL_PauseAudioDevice(mDevice, 0);
+    return true;''',
+'''#ifdef __ANDROID__
+    // Prime with 64ms silence so the first frame and brief UI stalls do
+    // not immediately empty Android's hardware output FIFO.
+    const size_t silenceSize = 3072 * mNumChannels * sizeof(int16_t);
+    std::vector<uint8_t> silence(silenceSize, 0);
+    SDL_QueueAudio(mDevice, silence.data(), static_cast<Uint32>(silenceSize));
+#endif
+    SDL_PauseAudioDevice(mDevice, 0);
+    return true;''')
+
+replace("libultraship/src/ship/audio/SDLAudioPlayer.cpp",
+'''#include <spdlog/spdlog.h>''',
+'''#include <spdlog/spdlog.h>
+#include <vector>''')
+
+# The previous menu selection applied an advanced-resolution aspect but
+# did not offer native phone aspect ratios (often wider than 16:9).
+# Use an independent Android display mode, not the Advanced UI's state.
+replace("src/port/ui/PortMenu.cpp",
+'''    static const std::unordered_map<int32_t, const char*> androidAspectOptions = {
+        { 2, "4:3 (Original)" }, { 3, "16:9 (Widescreen)" }
+    };
+    AddWidget(path, "Aspect Ratio (4:3 / 16:9)", WIDGET_CVAR_COMBOBOX)
+        .CVar(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio")
+        .Callback([](WidgetInfo& info) {
+            const int mode = CVarGetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio", 2);
+            CVarSetInteger(CVAR_LOW_RES_MODE, 0);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 1);
+            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", mode == 3 ? 16.0f : 4.0f);
+            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", mode == 3 ? 9.0f : 3.0f);
+            CVarSave();
+        })
+        .Options(ComboboxOptions()
+            .ComboMap(androidAspectOptions)
+            .DefaultIndex(2)
+            .Tooltip("Original 4:3 or true widescreen 16:9 gameplay."));''',
+'''    static const std::unordered_map<int32_t, const char*> androidAspectOptions = {
+        { 0, "Full Display (Auto)" },
+        { 2, "4:3 (Original)" },
+        { 3, "16:9 (Widescreen)" }
+    };
+    AddWidget(path, "Screen Format", WIDGET_CVAR_COMBOBOX)
+        .CVar("gAndroidDisplayMode")
+        .Callback([](WidgetInfo& info) {
+            const int mode = CVarGetInteger("gAndroidDisplayMode", 0);
+            CVarSetInteger(CVAR_LOW_RES_MODE, 0);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", mode != 0);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".PixelPerfectMode", 0);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".VerticalResolutionToggle", 0);
+            if (mode != 0) {
+                CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", mode == 3 ? 16.0f : 4.0f);
+                CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", mode == 3 ? 9.0f : 3.0f);
+            }
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio", mode == 0 ? 0 : mode);
+            CVarSave();
+        })
+        .Options(ComboboxOptions()
+            .ComboMap(androidAspectOptions)
+            .DefaultIndex(0)
+            .Tooltip("Full Display uses your phone's real aspect ratio. 16:9 and 4:3 are fixed."));''')
+
+replace("src/port/Engine.cpp",
+'''    this->context->InitConsoleVariables(); // without this line the controldeck constructor failes in
+                                           // ShipDeviceIndexMappingManager::UpdateControllerNamesFromConfig()
+''',
+'''    this->context->InitConsoleVariables(); // without this line the controldeck constructor failes in
+                                           // ShipDeviceIndexMappingManager::UpdateControllerNamesFromConfig()
+#ifdef __ANDROID__
+    // Migrate older Android builds which defaulted to locked 4:3 and
+    // ensure aspect settings apply before the first rendered game frame.
+    int displayMode = CVarGetInteger("gAndroidDisplayMode", -1);
+    if (displayMode != 2 && displayMode != 3) {
+        displayMode = 0; // Native/full-screen aspect by default.
+    }
+    CVarSetInteger("gAndroidDisplayMode", displayMode);
+    CVarSetInteger(CVAR_LOW_RES_MODE, 0);
+    CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", displayMode != 0);
+    CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".PixelPerfectMode", 0);
+    CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".VerticalResolutionToggle", 0);
+    if (displayMode != 0) {
+        CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", displayMode == 3 ? 16.0f : 4.0f);
+        CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", displayMode == 3 ? 9.0f : 3.0f);
+    }
+#endif
+''')
+
 print("Android audio + aspect ratio patches complete")
