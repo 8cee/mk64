@@ -18,12 +18,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout pinned Android runtime source
-        uses: actions/checkout@v4
-        with:
-          repository: izzy2lost/SpaghettiKart
-          ref: 9253aad869c96a8e660f707a74fe57c5d4ebdd2a
-          path: runtime
-          submodules: true
+        run: |
+          git clone https://github.com/izzy2lost/SpaghettiKart.git runtime
+          cd runtime
+          git checkout 9253aad869c96a8e660f707a74fe57c5d4ebdd2a
+          git submodule update --init torch libultraship tools/blender/fast64
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
