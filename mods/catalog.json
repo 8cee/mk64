@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "updated": "2026-10-06",
+  "game": "SpaghettiKart",
+  "mods": [
+    {
+      "id": "oot-npc-racers",
+      "name": "Ocarina of Time NPC Racers",
+      "category": "Characters",
+      "description": "Replaces the Mario Kart 64 racers with NPC characters from The Legend of Zelda: Ocarina of Time.",
+      "gamebananaId": 701263,
+      "homepage": "https://gamebanana.com/mods/701263"
+    },
+    {
+      "id": "child-link-luigi",
+      "name": "Child Link - Replace Luigi",
+      "category": "Characters",
+      "description": "Character replacement for Luigi using Child Link in the Yusuke Nakano art style.",
+      "gamebananaId": 655866,
+      "homepage": "https://gamebanana.com/mods/655866"
+    },
+    {
+      "id": "kazz-over-mario",
+      "name": "Kazz Over Mario",
+      "category": "Characters",
+      "description": "Character replacement mod for Mario.",
+      "gamebananaId": 606351,
+      "homepage": "https://gamebanana.com/mods/606351"
+    }
+  ]
+}
