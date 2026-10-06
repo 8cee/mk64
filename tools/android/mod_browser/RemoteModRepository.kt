@@ -39,7 +39,7 @@ object RemoteModRepository {
             for (index in 0 until mods.length()) {
                 val item = mods.getJSONObject(index)
                 val url = item.getString("download_url")
-                require(url.startsWith("https://")) { "Unsafe download URL for \${item.optString("name")}" }
+                require(url.startsWith("https://")) { "Unsafe download URL for ${item.optString("name")}" }
 
                 val fileName = item.optString("file_name")
                     .ifBlank { url.substringBefore('?').substringAfterLast('/') }
@@ -73,19 +73,19 @@ object RemoteModRepository {
             return "Unsupported mod archive: $safeName"
         }
 
-        val temp = File(context.cacheDir, "mod-download-\${System.nanoTime()}-$safeName")
+        val temp = File(context.cacheDir, "mod-download-${System.nanoTime()}-$safeName")
         return try {
             download(mod.downloadUrl, temp, progress)
             if (mod.sha256.isNotBlank()) {
                 val actual = sha256(temp)
                 if (!actual.equals(mod.sha256, ignoreCase = true)) {
-                    return "Checksum mismatch for \${mod.name}. Download discarded."
+                    return "Checksum mismatch for ${mod.name}. Download discarded."
                 }
             }
             ModStore.importDownloadedFile(context, temp, safeName)
         } catch (error: Exception) {
-            Log.e(TAG, "Download failed for \${mod.name}", error)
-            "Could not download \${mod.name}: \${error.message ?: error}"
+            Log.e(TAG, "Download failed for ${mod.name}", error)
+            "Could not download ${mod.name}: ${error.message ?: error}"
         } finally {
             temp.delete()
         }
@@ -102,7 +102,7 @@ object RemoteModRepository {
         val expected = connection.contentLengthLong
         if (expected > MAX_DOWNLOAD_BYTES) {
             connection.disconnect()
-            error("Mod is too large (\${expected / (1024 * 1024)} MB).")
+            error("Mod is too large (${expected / (1024 * 1024)} MB).")
         }
 
         var total = 0L
