@@ -35,7 +35,7 @@ void AMK64GameMode::BeginPlay()
 
     AMK64KartPawn* Kart = World->SpawnActor<AMK64KartPawn>(
         AMK64KartPawn::StaticClass(),
-        FVector(0.0f, 0.0f, 120.0f),
+        FVector(0.0f, 0.0f, -50.0f),
         FRotator::ZeroRotator);
 
     if (APlayerController* PC = World->GetFirstPlayerController())
