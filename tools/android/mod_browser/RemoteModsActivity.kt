@@ -90,11 +90,11 @@ class RemoteModsActivity : ComponentActivity() {
                 result.fold(
                     onSuccess = {
                         remoteMods = it
-                        setBusy(false, if (it.isEmpty()) "No mods are published yet." else "\${it.size} mods available")
+                        setBusy(false, if (it.isEmpty()) "No mods are published yet." else "${it.size} mods available")
                         render()
                     },
                     onFailure = {
-                        setBusy(false, "Could not load mod server: \${it.message ?: it}")
+                        setBusy(false, "Could not load mod server: ${it.message ?: it}")
                     }
                 )
             }
@@ -114,14 +114,14 @@ class RemoteModsActivity : ComponentActivity() {
 
             val textColumn = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             textColumn.addView(TextView(this).apply {
-                text = if (mod.version.isBlank()) mod.name else "\${mod.name}  \${mod.version}"
+                text = if (mod.version.isBlank()) mod.name else "${mod.name}  ${mod.version}"
                 setTextColor(Color.WHITE)
                 textSize = 15f
                 setTypeface(typeface, Typeface.BOLD)
             })
             textColumn.addView(TextView(this).apply {
                 text = buildString {
-                    if (mod.author.isNotBlank()) append("by \${mod.author}")
+                    if (mod.author.isNotBlank()) append("by ${mod.author}")
                     if (mod.description.isNotBlank()) {
                         if (isNotEmpty()) append("\\n")
                         append(mod.description)
@@ -146,30 +146,30 @@ class RemoteModsActivity : ComponentActivity() {
 
     private fun confirmInstall(mod: RemoteModRepository.RemoteMod) {
         AlertDialog.Builder(this)
-            .setTitle("Install \${mod.name}?")
-            .setMessage("This downloads \${mod.fileName} from the community mod server and adds it to MK64.")
+            .setTitle("Install ${mod.name}?")
+            .setMessage("This downloads ${mod.fileName} from the community mod server and adds it to MK64.")
             .setPositiveButton("Install") { _, _ -> install(mod) }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
     private fun install(mod: RemoteModRepository.RemoteMod) {
-        setBusy(true, "Downloading \${mod.name}…")
+        setBusy(true, "Downloading ${mod.name}…")
         thread(name = "mod-download") {
             val error = RemoteModRepository.install(this, mod) { downloaded, total ->
                 if (total > 0) {
                     val pct = (downloaded * 100L / total).coerceIn(0L, 100L)
-                    runOnUiThread { status.text = "Downloading \${mod.name}… $pct%" }
+                    runOnUiThread { status.text = "Downloading ${mod.name}… $pct%" }
                 }
             }
             runOnUiThread {
                 if (error == null) {
                     Toast.makeText(
                         this,
-                        "\${mod.name} installed. Restart the game to apply it.",
+                        "${mod.name} installed. Restart the game to apply it.",
                         Toast.LENGTH_LONG
                     ).show()
-                    setBusy(false, "Installed \${mod.name}")
+                    setBusy(false, "Installed ${mod.name}")
                     render()
                 } else {
                     setBusy(false, error)
