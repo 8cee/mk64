@@ -1,6 +1,46 @@
 {
   "schema": 1,
-  "generated_at": "",
+  "generated_at": "2026-10-06T13:19:17.773776+00:00",
   "source": "GameBanana SpaghettiKart",
-  "mods": []
-}
+  "mods": [
+    {
+      "id": "gamebanana-655866",
+      "name": "Child Link (Yusuke Nakano style) - Replace Luigi",
+      "version": "",
+      "author": "Purple Hato",
+      "description": "This mod recreates Link from Ocarina of Time in the distinct style of Yusuke Nakano — the artist behind the legendary official artwork we all know and love.",
+      "homepage_url": "https://gamebanana.com/mods/655866",
+      "file_name": "child_link_yusuke_nakano_style_-_64px.zip",
+      "download_url": "https://gamebanana.com/dl/1633966",
+      "sha256": "",
+      "source": "gamebanana",
+      "source_id": 655866
+    },
+    {
+      "id": "gamebanana-606351",
+      "name": "Kazz Over Mario - A random mod",
+      "version": "",
+      "author": "MattK_VT",
+      "description": "Hi everybody! Just dropping this to keep sure the Game on Gamebanana, also this is shitty so be careful.",
+      "homepage_url": "https://gamebanana.com/mods/606351",
+      "file_name": "kazz_over_mario.zip",
+      "download_url": "https://gamebanana.com/dl/1475679",
+      "sha256": "",
+      "source": "gamebanana",
+      "source_id": 606351
+    },
+    {
+      "id": "gamebanana-701263",
+      "name": "Ocarina of Time NPC Racers",
+      "version": "",
+      "author": "RoboRich",
+      "description": "A character replacement mod for Spaghetti Kart that replaces all of the characters with NPCs from Ocarina of Time.Mario -> TalonLuigi -> IngoPeach -> MalonToad -> RutoYoshi -> SariaDK -> DaruniaWario -> SheikBowser -> Ganondorf",
+      "homepage_url": "https://gamebanana.com/mods/701263",
+      "file_name": "ocarina_of_time_npc_kartso2r.zip",
+      "download_url": "https://gamebanana.com/dl/1776353",
+      "sha256": "",
+      "source": "gamebanana",
+      "source_id": 701263
+    }
+  ]
+}\n
