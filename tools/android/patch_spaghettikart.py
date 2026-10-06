@@ -3,6 +3,7 @@
 Abort on upstream changes instead of silently producing an unpatched APK.
 """
 from pathlib import Path
+import shutil
 
 root = Path(__file__).resolve().parents[2] / "runtime"
 def replace(path, before, after):
@@ -243,3 +244,74 @@ replace("src/port/ui/PortMenu.cpp",
 ''')
 
 print("Android audio + aspect ratio patches complete")
+
+
+# Built-in remote mod browser. Keep the UI client in our integration tree and
+# copy it into the pinned SpaghettiKart Android source during CI.
+mod_browser_src = Path(__file__).resolve().parent / "mod_browser"
+mod_browser_dst = root / "android/app/src/main/java/com/izzy/kart"
+for filename in ("RemoteModRepository.kt", "RemoteModsActivity.kt"):
+    shutil.copyfile(mod_browser_src / filename, mod_browser_dst / filename)
+    print("COPIED", filename)
+
+replace("android/app/src/main/AndroidManifest.xml",
+'''<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:installLocation="auto">
+
+    <!-- OpenGL ES 3.0 -->''',
+'''<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:installLocation="auto">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- OpenGL ES 3.0 -->''')
+
+replace("android/app/src/main/AndroidManifest.xml",
+'''        <activity
+            android:name=".ModsActivity"''',
+'''        <activity
+            android:name=".RemoteModsActivity"
+            android:exported="false"
+            android:label="Online Mods"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
+        <activity
+            android:name=".ModsActivity"''')
+
+replace("android/app/src/main/java/com/izzy/kart/ModsActivity.kt",
+'''        actions.addView(button("Import mod") { importArchives.launch(arrayOf("*/*")) })''',
+'''        actions.addView(button("Browse online") {
+            startActivity(Intent(this, RemoteModsActivity::class.java))
+        })
+        actions.addView(button("Import mod") { importArchives.launch(arrayOf("*/*")) })''')
+
+replace("android/app/src/main/java/com/izzy/kart/ModStore.kt",
+'''    /** A folder mod leaves as a .zip, which the engine loads just the same. */
+    fun exportName(mod: Mod): String = if (mod.isFolder) "${mod.name}.zip" else mod.name
+
+    private const val COPY_BUFFER = 1 shl 16''',
+'''    /** A folder mod leaves as a .zip, which the engine loads just the same. */
+    fun exportName(mod: Mod): String = if (mod.isFolder) "${mod.name}.zip" else mod.name
+
+    /** Installs an already-downloaded remote archive into the managed load order. */
+    fun importDownloadedFile(context: Context, source: File, displayName: String): String? {
+        if (!displayName.endsWith(".o2r", true) && !displayName.endsWith(".zip", true)) {
+            return "$displayName is not a supported mod archive."
+        }
+        val target = nextFreeFile(context, displayName)
+        return try {
+            source.inputStream().use { input ->
+                FileOutputStream(target).use { output -> input.copyTo(output, COPY_BUFFER) }
+            }
+            null
+        } catch (error: Exception) {
+            target.delete()
+            Log.e(TAG, "Remote install of $displayName failed", error)
+            "Could not install $displayName: ${error.message ?: error}"
+        }
+    }
+
+    private const val COPY_BUFFER = 1 shl 16''')
+
+print("Android remote mod browser patches complete")
