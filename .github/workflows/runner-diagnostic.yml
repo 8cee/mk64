@@ -1,0 +1,14 @@
+name: Runner Diagnostic
+on:
+  push:
+    branches: [ android-spaghettikart-runtime ]
+    paths: [ '.github/workflows/runner-diagnostic.yml' ]
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify runner startup
+        run: |
+          echo "Runner started"
+          uname -a
