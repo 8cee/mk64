@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout MK64 integration branch
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Checkout pinned Android runtime source
         uses: actions/checkout@v4
