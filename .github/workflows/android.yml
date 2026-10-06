@@ -2,9 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [ android-port ]
-  pull_request:
-    branches: [ master ]
+    branches: [ android-port, android-spaghettikart-runtime ]
   workflow_dispatch:
 
 concurrency:
@@ -12,7 +10,70 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  spaghettikart-runtime:
+    if: github.ref == 'refs/heads/android-spaghettikart-runtime'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout MK64 integration branch
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout pinned Android runtime source
+        uses: actions/checkout@v4
+        with:
+          repository: izzy2lost/SpaghettiKart
+          ref: 9253aad869c96a8e660f707a74fe57c5d4ebdd2a
+          path: runtime
+          submodules: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install host build dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc g++ git cmake ninja-build lsb-release
+
+      - name: Build Torch host extractor
+        working-directory: runtime
+        run: |
+          cmake -S torch -B torch/build-host -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUSE_STANDALONE=ON \
+            -DBUILD_MK64=ON \
+            -DBUILD_NAUDIO=ON \
+            -DBUILD_SM64=OFF \
+            -DBUILD_SF64=OFF \
+            -DBUILD_FZERO=OFF \
+            -DBUILD_MARIO_ARTIST=OFF
+          cmake --build torch/build-host --parallel
+
+      - name: Generate engine assets
+        working-directory: runtime
+        run: |
+          torch/build-host/torch pack assets spaghetti.o2r o2r
+          cp spaghetti.o2r android/app/src/main/assets/spaghetti.o2r
+
+      - name: Build runtime debug APK
+        working-directory: runtime/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../../mk64-runtime-debug.apk
+
+      - name: Upload runtime debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mk64-spaghettikart-runtime-debug
+          path: mk64-runtime-debug.apk
+
+  direct-port:
+    if: github.ref != 'refs/heads/android-spaghettikart-runtime'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
