@@ -4,7 +4,7 @@ Abort on upstream changes instead of silently producing an unpatched APK.
 """
 from pathlib import Path
 
-root = Path(__file__).resolve().parents[3] / "runtime"
+root = Path(__file__).resolve().parents[2] / "runtime"
 def replace(path, before, after):
     file = root / path
     data = file.read_text()
