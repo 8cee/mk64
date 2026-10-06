@@ -24,6 +24,9 @@ jobs:
           git checkout 9253aad869c96a8e660f707a74fe57c5d4ebdd2a
           git submodule update --init torch libultraship tools/blender/fast64
 
+      - name: Patch pinned runtime for Android audio and aspect ratio
+        run: python3 tools/android/patch_spaghettikart.py
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
