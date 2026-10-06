@@ -1,0 +1,42 @@
+name: UE5 Windows Package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: [self-hosted, Windows, X64, UE5]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate Unreal Engine 5.5
+        shell: pwsh
+        run: |
+          $candidates = @(
+            $env:UE_ROOT,
+            "C:\Program Files\Epic Games\UE_5.5",
+            "D:\Epic Games\UE_5.5",
+            "C:\UE_5.5"
+          ) | Where-Object { $_ -and (Test-Path $_) }
+          if (-not $candidates) {
+            throw "UE5 5.5 was not found. Configure UE_ROOT or install UE_5.5 on this self-hosted runner."
+          }
+          "UE_ROOT=$($candidates[0])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Package Win64 Development build
+        shell: pwsh
+        run: ./BUILD_UE5_WINDOWS.ps1 -UE_ROOT "$env:UE_ROOT"
+
+      - name: Smoke-check executable
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path Build\Windows -Recurse -Filter MK64Remake.exe | Select-Object -First 1
+          if (-not $exe) { throw "MK64Remake.exe was not produced." }
+          Write-Host "Playable executable: $($exe.FullName)"
+
+      - name: Upload playable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: MK64-UE5-Windows-Playable
+          path: Build/Windows/**
