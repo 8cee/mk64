@@ -77,6 +77,7 @@ struct ColorCombiner {
 
 static struct ColorCombiner color_combiner_pool[512];
 static size_t color_combiner_pool_size;
+static struct ColorCombiner *prev_combiner;
 
 static struct RSP {
     float modelview_matrix_stack[11][4][4];
@@ -232,7 +233,6 @@ static void gfx_generate_cc(struct ColorCombiner *comb, uint32_t cc_id) {
 }
 
 static struct ColorCombiner *gfx_lookup_or_create_color_combiner(uint32_t cc_id) {
-    static struct ColorCombiner *prev_combiner;
     if (prev_combiner != NULL && prev_combiner->cc_id == cc_id) {
         return prev_combiner;
     }
@@ -1632,6 +1632,28 @@ void gfx_init(struct GfxWindowManagerAPI *wapi, struct GfxRenderingAPI *rapi, co
     gfx_rapi = rapi;
     gfx_wapi->init(game_name, start_in_fullscreen);
     gfx_rapi->init();
+    
+    /*
+     * gfx_init() can run again after Android recreates the EGL context while
+     * the game remains alive. GLES object names from the old context are then
+     * invalid, so discard every Fast3D cache that mirrors those objects.
+     * Keep RSP/RDP game state intact; the next display list repopulates GL
+     * resources and reapplies viewport/scissor/texture state.
+     */
+    memset(&gfx_texture_cache, 0, sizeof(gfx_texture_cache));
+    memset(color_combiner_pool, 0, sizeof(color_combiner_pool));
+    color_combiner_pool_size = 0;
+    prev_combiner = NULL;
+    rendering_state.shader_program = NULL;
+    rendering_state.textures[0] = NULL;
+    rendering_state.textures[1] = NULL;
+    memset(&rendering_state.viewport, 0, sizeof(rendering_state.viewport));
+    memset(&rendering_state.scissor, 0, sizeof(rendering_state.scissor));
+    rdp.textures_changed[0] = true;
+    rdp.textures_changed[1] = true;
+    rdp.viewport_or_scissor_changed = true;
+    buf_vbo_len = 0;
+    buf_vbo_num_tris = 0;
     
     // Used in the 120 star TAS
     static uint32_t precomp_shaders[] = {
