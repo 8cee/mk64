@@ -1,6 +1,8 @@
 #include "MK64GameMode.h"
 #include "MK64KartPawn.h"
 #include "MK64TrackActor.h"
+#include "MK64PlayerController.h"
+#include "MK64HUD.h"
 
 #include "Engine/DirectionalLight.h"
 #include "Engine/SkyLight.h"
@@ -12,6 +14,8 @@
 AMK64GameMode::AMK64GameMode()
 {
     DefaultPawnClass = nullptr;
+    PlayerControllerClass = AMK64PlayerController::StaticClass();
+    HUDClass = AMK64HUD::StaticClass();
 }
 
 void AMK64GameMode::BeginPlay()
