@@ -40,6 +40,7 @@ jobs:
       - name: Build Torch host extractor
         working-directory: runtime
         run: |
+          set -o pipefail
           cmake -S torch -B torch/build-host -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DUSE_STANDALONE=ON \
@@ -48,8 +49,8 @@ jobs:
             -DBUILD_SM64=OFF \
             -DBUILD_SF64=OFF \
             -DBUILD_FZERO=OFF \
-            -DBUILD_MARIO_ARTIST=OFF
-          cmake --build torch/build-host --parallel
+            -DBUILD_MARIO_ARTIST=OFF 2>&1 | tee ../torch-configure.log
+          cmake --build torch/build-host --parallel 2>&1 | tee ../torch-build.log
 
       - name: Generate engine assets
         working-directory: runtime
@@ -60,9 +61,21 @@ jobs:
       - name: Build runtime debug APK
         working-directory: runtime/android
         run: |
+          set -o pipefail
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee ../../gradle-build.log
           cp app/build/outputs/apk/debug/app-debug.apk ../../mk64-runtime-debug.apk
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mk64-runtime-build-logs
+          path: |
+            torch-configure.log
+            torch-build.log
+            gradle-build.log
+          if-no-files-found: ignore
 
       - name: Upload runtime debug APK
         uses: actions/upload-artifact@v4
