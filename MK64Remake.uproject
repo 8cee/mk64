@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.5",
+  "Category": "Games",
+  "Description": "Mario Kart 64 UE5 remake prototype",
+  "Modules": [
+    {
+      "Name": "MK64Remake",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
