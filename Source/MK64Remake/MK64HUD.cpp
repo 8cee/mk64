@@ -7,7 +7,14 @@ void AMK64HUD::DrawHUD()
 {
     Super::DrawHUD();
     auto* PC = Cast<AMK64PlayerController>(GetOwningPlayerController());
-    if (!PC || !PC->IsOptionsVisible() || !Canvas) return;
+    if (!PC || !Canvas) return;
+
+    if (!PC->IsOptionsVisible())
+    {
+        DrawText(TEXT("MK64 UE5 REMAKE PROTOTYPE"), FLinearColor::White, 24.0f, 24.0f);
+        DrawText(TEXT("W/S accelerate/brake  A/D steer  F11 options"), FLinearColor(0.7f,0.8f,1.0f,1.0f), 24.0f, 50.0f);
+        return;
+    }
 
     const float X = 40.0f;
     const float Y = 40.0f;
