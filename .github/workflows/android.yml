@@ -64,6 +64,13 @@ jobs:
         run: |
           torch/build-host/torch pack assets spaghetti.o2r o2r
           cp spaghetti.o2r android/app/src/main/assets/spaghetti.o2r
+          # Gradle's stageTorchAssets task is not attached to mergeDebugAssets
+          # in this pinned upstream revision. Include ROM extraction recipes
+          # explicitly so the APK can unpack a user-selected ROM.
+          cp config.yml android/app/src/main/assets/config.yml
+          cp -a yamls android/app/src/main/assets/yamls
+          cp -a meta android/app/src/main/assets/meta
+          test -f android/app/src/main/assets/yamls/mk64.yaml || find android/app/src/main/assets/yamls -type f | head
 
       - name: Build runtime debug APK
         working-directory: runtime/android
@@ -72,6 +79,10 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace 2>&1 | tee ../../gradle-build.log
           cp app/build/outputs/apk/debug/app-debug.apk ../../mk64-runtime-debug.apk
+          unzip -Z1 ../../mk64-runtime-debug.apk | grep -qx 'assets/config.yml'
+          unzip -Z1 ../../mk64-runtime-debug.apk | grep -q '^assets/yamls/'
+          unzip -Z1 ../../mk64-runtime-debug.apk | grep -q '^assets/meta/'
+          unzip -Z1 ../../mk64-runtime-debug.apk | grep -qx 'assets/spaghetti.o2r'
 
       - name: Upload diagnostic logs
         if: always()
