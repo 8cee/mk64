@@ -202,4 +202,44 @@ replace("src/port/Engine.cpp",
 #endif
 ''')
 
+# An always-visible touch Settings control remains available even when
+# virtual gamepad controls are hidden. Do not trap the menu in button_group.
+replace("android/app/src/main/res/layout/touchcontrol_overlay.xml",
+'''    <!-- Menu Button (Escape) -->''',
+'''</androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Settings remains visible when the virtual controls are hidden. -->
+    <!-- Menu Button (Escape) -->''')
+replace("android/app/src/main/res/layout/touchcontrol_overlay.xml",
+'''        android:layout_width="60dp"
+        android:layout_height="35dp"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/ic_rectangular_button"
+        android:text="Menu"''',
+'''        android:layout_width="84dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/ic_rectangular_button"
+        android:text="Settings"''')
+replace("android/app/src/main/res/layout/touchcontrol_overlay.xml",
+'''</androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Toggle Button -->''',
+'''    <!-- Toggle Button -->''')
+replace("src/port/ui/PortMenu.cpp",
+'''    AddSidebarEntry("Settings", "Controls", 1);
+    AddWidget(path,
+''',
+'''    AddSidebarEntry("Settings", "Controls", 1);
+#ifdef __ANDROID__
+    AddWidget(path, "Back to Graphics / Settings", WIDGET_BUTTON)
+        .Callback([](WidgetInfo& info) {
+            CVarSetString("gSettings.Menu.SettingsSidebarSection", "Graphics");
+            CVarSave();
+        })
+        .Options(ButtonOptions().Tooltip("Return to Graphics to adjust display options."));
+#endif
+    AddWidget(path,
+''')
+
 print("Android audio + aspect ratio patches complete")
