@@ -1,0 +1,92 @@
+name: Temporary DBZ one-file packer
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  dbz_onefile:
+    if: github.head_ref == 'tmp/dbz-onefile-build'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct payload-ready Windows executable
+        shell: pwsh
+        run: |
+          $b64 = ((1..6) | ForEach-Object { Get-Content ".dbz-build/part$_.b64" -Raw }) -join ''
+          [IO.File]::WriteAllBytes("DBZ-Super-Butoden-OneFile.exe", [Convert]::FromBase64String($b64))
+          $sha = (Get-FileHash "DBZ-Super-Butoden-OneFile.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($sha -ne "fcd73586fec89e1f8a28932dc5b60b3d20b37b5aa9ea84ef192ccbbcc1a99d8a") {
+            throw "Reconstructed EXE hash mismatch: $sha"
+          }
+      - name: Download official x64 Snes9x core
+        shell: pwsh
+        run: |
+          $url = "https://buildbot.libretro.com/nightly/windows/x86_64/latest/snes9x_libretro.dll.zip"
+          Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile core.zip
+          Expand-Archive -Force core.zip core
+          $dll = Get-ChildItem core -Recurse -Filter snes9x_libretro.dll | Select-Object -First 1
+          if (!$dll) { throw "snes9x_libretro.dll missing from official archive" }
+          $bytes = [IO.File]::ReadAllBytes($dll.FullName)
+          if ($bytes.Length -lt 500000 -or $bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a) {
+            throw "Downloaded core is not a plausible PE DLL"
+          }
+          "CoreSHA256=$((Get-FileHash $dll.FullName -Algorithm SHA256).Hash.ToLowerInvariant())" | Set-Content runtime-info.txt
+          "CoreBytes=$($bytes.Length)" | Add-Content runtime-info.txt
+      - name: Append core into EXE payload
+        shell: pwsh
+        run: |
+          $exe = "DBZ-Super-Butoden-OneFile.exe"
+          $dll = (Get-ChildItem core -Recurse -Filter snes9x_libretro.dll | Select-Object -First 1).FullName
+          $payload = [IO.File]::ReadAllBytes($dll)
+          $stream = [IO.File]::Open($exe,[IO.FileMode]::Append,[IO.FileAccess]::Write,[IO.FileShare]::None)
+          try {
+            $stream.Write($payload,0,$payload.Length)
+            $marker=[Text.Encoding]::ASCII.GetBytes("DBZCORE1")
+            $stream.Write($marker,0,$marker.Length)
+            $length=[BitConverter]::GetBytes([Int64]$payload.Length)
+            $stream.Write($length,0,$length.Length)
+          } finally { $stream.Dispose() }
+      - name: Verify final one-file EXE
+        shell: pwsh
+        run: |
+          $exe="DBZ-Super-Butoden-OneFile.exe"
+          $data=[IO.File]::ReadAllBytes($exe)
+          if ($data[0] -ne 0x4d -or $data[1] -ne 0x5a) { throw "MZ header missing" }
+          $tail=$data[($data.Length-16)..($data.Length-1)]
+          if ([Text.Encoding]::ASCII.GetString($tail[0..7]) -ne "DBZCORE1") { throw "Payload marker missing" }
+          $len=[BitConverter]::ToInt64($tail,8)
+          if ($len -lt 500000 -or $len -gt 33554432) { throw "Payload size invalid: $len" }
+          if ($data.Length -ne (16896 + $len + 16)) { throw "Final size mismatch" }
+          $sha=(Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "EXESHA256=$sha" | Add-Content runtime-info.txt
+          "FinalExeBytes=$($data.Length)" | Add-Content runtime-info.txt
+          Write-Host "Verified DBZ one-file EXE $($data.Length) bytes $sha"
+      - name: Instructions
+        shell: pwsh
+        run: |
+          @'
+          DBZ SUPER BUTODEN - ONE-FILE PLAYABLE REFERENCE TEST
+
+          Double-click DBZ-Super-Butoden-OneFile.exe and select the extracted
+          original Super Butouden .sfc ROM.
+
+          No DLL selection. No first-run runtime download.
+          The SNES runtime is embedded in the EXE and extracted automatically.
+
+          P1: arrows, Z/A/X/S, Q/W, Enter, Right Shift
+          P2: I/J/K/L, F/G/H/Y, U/O, T/R
+          F11: options/pause
+          F1: scaling
+          Esc: close menu / quit
+
+          Version 2.0 is still the Unreal Engine 5.8 2D HD remake.
+          This EXE is the original-game playable reference build.
+          '@ | Set-Content READ_ME_FIRST.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DBZ-Super-Butoden-OneFile-Playable
+          path: |
+            DBZ-Super-Butoden-OneFile.exe
+            runtime-info.txt
+            READ_ME_FIRST.txt
+          if-no-files-found: error
