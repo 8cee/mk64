@@ -53,8 +53,11 @@ replace("src/port/Engine.cpp",
         // to the complete signal rather than only to HMAS.
         const size_t validSamples = num_audio_samples * NUM_AUDIO_CHANNELS * 2;
         for (size_t i = 0; i < validSamples; i++) {
-            float mixed = (static_cast<float>(nas_buffer[i]) +
-                           hmas_buffer[i] * 32767.0f) * master_vol;
+            // Leave real headroom for N64 + enhanced audio summing. The
+            // previous saturating-only mix still spent too much time at
+            // full-scale on Android and produced audible crackle.
+            float mixed = (static_cast<float>(nas_buffer[i]) * 0.72f +
+                           hmas_buffer[i] * 32767.0f * 0.62f) * master_vol;
             if (mixed > 32767.0f) mixed = 32767.0f;
             if (mixed < -32768.0f) mixed = -32768.0f;
             mix_buffer[i] = static_cast<int16_t>(mixed);
@@ -62,6 +65,26 @@ replace("src/port/Engine.cpp",
 
 replace("src/port/ui/PortMenu.cpp",
 '''    AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND);
+
+#ifdef __ANDROID__
+    AddWidget(path, "Widescreen 16:9", WIDGET_CVAR_CHECKBOX)
+        .CVar("gAndroidWidescreen16x9")
+        .Callback([](WidgetInfo& info) {
+            const bool enabled = CVarGetInteger("gAndroidWidescreen16x9", 1) != 0;
+            CVarSetInteger("gAndroidDisplayMode", enabled ? 3 : 2);
+            CVarSetInteger(CVAR_LOW_RES_MODE, 0);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 1);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".PixelPerfectMode", 0);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".VerticalResolutionToggle", 0);
+            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", enabled ? 16.0f : 4.0f);
+            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", enabled ? 9.0f : 3.0f);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio", enabled ? 3 : 2);
+            CVarSave();
+        })
+        .Options(CheckboxOptions()
+            .DefaultValue(true)
+            .Tooltip("Render gameplay at true 16:9. Disable for original 4:3."));
+#endif
 
     AddWidget(path, "Internal Resolution: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)''',
 '''    AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND);
@@ -175,8 +198,8 @@ replace("src/port/ui/PortMenu.cpp",
         })
         .Options(ComboboxOptions()
             .ComboMap(androidAspectOptions)
-            .DefaultIndex(0)
-            .Tooltip("Full Display uses your phone's real aspect ratio. 16:9 and 4:3 are fixed."));''')
+            .DefaultIndex(3)
+            .Tooltip("16:9 is the Android default. 4:3 keeps the original presentation; Full Display uses the phone aspect."));''')
 
 replace("src/port/Engine.cpp",
 '''    this->context->InitConsoleVariables(); // without this line the controldeck constructor failes in
@@ -189,9 +212,10 @@ replace("src/port/Engine.cpp",
     // ensure aspect settings apply before the first rendered game frame.
     int displayMode = CVarGetInteger("gAndroidDisplayMode", -1);
     if (displayMode != 2 && displayMode != 3) {
-        displayMode = 0; // Native/full-screen aspect by default.
+        displayMode = 3; // Force true 16:9 widescreen by default on Android.
     }
     CVarSetInteger("gAndroidDisplayMode", displayMode);
+    CVarSetInteger("gAndroidWidescreen16x9", displayMode == 3 ? 1 : 0);
     CVarSetInteger(CVAR_LOW_RES_MODE, 0);
     CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", displayMode != 0);
     CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".PixelPerfectMode", 0);
