@@ -315,3 +315,53 @@ replace("android/app/src/main/java/com/izzy/kart/ModStore.kt",
     private const val COPY_BUFFER = 1 shl 16''')
 
 print("Android remote mod browser patches complete")
+
+# N64 controller cleanup: the touch overlay must not expose Xbox-style X/Y
+# face buttons. MK64 uses A/B plus the four C buttons.
+replace("android/app/src/main/res/layout/touchcontrol_overlay.xml",
+'''    <!-- Action Buttons (A, B, X, Y) -->''',
+'''    <!-- N64 Action Buttons (A, B) -->''')
+
+replace("android/app/src/main/res/layout/touchcontrol_overlay.xml",
+'''    <Button
+        android:id="@+id/buttonY"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/ic_button"
+        android:text="Y"
+        app:layout_constraintBottom_toTopOf="@id/buttonB"
+        app:layout_constraintEnd_toStartOf="@id/buttonB"
+        android:textColor="#25FFFFFF"/>
+
+    <Button
+        android:id="@+id/buttonX"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/ic_button"
+        android:text="X"
+        app:layout_constraintBottom_toTopOf="@id/buttonA"
+        app:layout_constraintEnd_toStartOf="@id/buttonA"
+        android:textColor="#25FFFFFF"/>
+
+''',
+'''''')
+
+replace("android/app/src/main/java/com/izzy/kart/MainActivity.kt",
+'''            ControllerButtons.BUTTON_A, ControllerButtons.BUTTON_B,
+            ControllerButtons.BUTTON_X, ControllerButtons.BUTTON_Y,
+            ControllerButtons.BUTTON_LB, ControllerButtons.BUTTON_RB,''',
+'''            ControllerButtons.BUTTON_A, ControllerButtons.BUTTON_B,
+            ControllerButtons.BUTTON_LB, ControllerButtons.BUTTON_RB,''')
+
+replace("android/app/src/main/java/com/izzy/kart/MainActivity.kt",
+'''        overlay.bindButton(R.id.buttonA, ControllerButtons.BUTTON_A)
+        overlay.bindButton(R.id.buttonB, ControllerButtons.BUTTON_B)
+        overlay.bindButton(R.id.buttonX, ControllerButtons.BUTTON_X)
+        overlay.bindButton(R.id.buttonY, ControllerButtons.BUTTON_Y)
+        overlay.bindButton(R.id.buttonLB, ControllerButtons.BUTTON_LB)''',
+'''        overlay.bindButton(R.id.buttonA, ControllerButtons.BUTTON_A)
+        overlay.bindButton(R.id.buttonB, ControllerButtons.BUTTON_B)
+        overlay.bindButton(R.id.buttonLB, ControllerButtons.BUTTON_LB)''')
+
+print("N64 touch controller cleanup complete")
+
