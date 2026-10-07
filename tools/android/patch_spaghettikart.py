@@ -63,57 +63,6 @@ replace("src/port/Engine.cpp",
             mix_buffer[i] = static_cast<int16_t>(mixed);
         }''')
 
-replace("src/port/ui/PortMenu.cpp",
-'''    AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND);
-
-#ifdef __ANDROID__
-    AddWidget(path, "Widescreen 16:9", WIDGET_CVAR_CHECKBOX)
-        .CVar("gAndroidWidescreen16x9")
-        .Callback([](WidgetInfo& info) {
-            const bool enabled = CVarGetInteger("gAndroidWidescreen16x9", 1) != 0;
-            CVarSetInteger("gAndroidDisplayMode", enabled ? 3 : 2);
-            CVarSetInteger(CVAR_LOW_RES_MODE, 0);
-            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 1);
-            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".PixelPerfectMode", 0);
-            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".VerticalResolutionToggle", 0);
-            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", enabled ? 16.0f : 4.0f);
-            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", enabled ? 9.0f : 3.0f);
-            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio", enabled ? 3 : 2);
-            CVarSave();
-        })
-        .Options(CheckboxOptions()
-            .DefaultValue(true)
-            .Tooltip("Render gameplay at true 16:9. Disable for original 4:3."));
-#endif
-
-    AddWidget(path, "Internal Resolution: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)''',
-'''    AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND);
-
-#ifdef __ANDROID__
-    // The existing 16:9 preset is hidden in the advanced-resolution sidebar.
-    // Expose the common modes in the primary graphics settings on phones.
-    static const std::unordered_map<int32_t, const char*> androidAspectOptions = {
-        { 2, "4:3 (Original)" }, { 3, "16:9 (Widescreen)" }
-    };
-    AddWidget(path, "Aspect Ratio (4:3 / 16:9)", WIDGET_CVAR_COMBOBOX)
-        .CVar(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio")
-        .Callback([](WidgetInfo& info) {
-            const int mode = CVarGetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio", 2);
-            CVarSetInteger(CVAR_LOW_RES_MODE, 0);
-            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 1);
-            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", mode == 3 ? 16.0f : 4.0f);
-            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", mode == 3 ? 9.0f : 3.0f);
-            CVarSave();
-        })
-        .Options(ComboboxOptions()
-            .ComboMap(androidAspectOptions)
-            .DefaultIndex(2)
-            .Tooltip("Original 4:3 or true widescreen 16:9 gameplay."));
-#endif
-
-    AddWidget(path, "Internal Resolution: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)''')
-
-
 # Android typically has a native 48 kHz output path. The old 26800 Hz
 # SDL device rate is resampled by Android, while a fixed 896-frame
 # submission cadence leaves no margin for audio scheduling jitter.
@@ -155,51 +104,34 @@ replace("libultraship/src/ship/audio/SDLAudioPlayer.cpp",
 '''#include <spdlog/spdlog.h>
 #include <vector>''')
 
-# The previous menu selection applied an advanced-resolution aspect but
-# did not offer native phone aspect ratios (often wider than 16:9).
-# Use an independent Android display mode, not the Advanced UI's state.
+# Android graphics: expose and default a real 16:9 render path.
 replace("src/port/ui/PortMenu.cpp",
-'''    static const std::unordered_map<int32_t, const char*> androidAspectOptions = {
-        { 2, "4:3 (Original)" }, { 3, "16:9 (Widescreen)" }
-    };
-    AddWidget(path, "Aspect Ratio (4:3 / 16:9)", WIDGET_CVAR_COMBOBOX)
-        .CVar(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio")
+'''    AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND);
+
+    AddWidget(path, "Internal Resolution: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)''',
+'''    AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND);
+
+#ifdef __ANDROID__
+    AddWidget(path, "Widescreen 16:9", WIDGET_CVAR_CHECKBOX)
+        .CVar("gAndroidWidescreen16x9")
         .Callback([](WidgetInfo& info) {
-            const int mode = CVarGetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio", 2);
+            const bool enabled = CVarGetInteger("gAndroidWidescreen16x9", 1) != 0;
+            CVarSetInteger("gAndroidDisplayMode", enabled ? 3 : 2);
             CVarSetInteger(CVAR_LOW_RES_MODE, 0);
             CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 1);
-            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", mode == 3 ? 16.0f : 4.0f);
-            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", mode == 3 ? 9.0f : 3.0f);
-            CVarSave();
-        })
-        .Options(ComboboxOptions()
-            .ComboMap(androidAspectOptions)
-            .DefaultIndex(2)
-            .Tooltip("Original 4:3 or true widescreen 16:9 gameplay."));''',
-'''    static const std::unordered_map<int32_t, const char*> androidAspectOptions = {
-        { 0, "Full Display (Auto)" },
-        { 2, "4:3 (Original)" },
-        { 3, "16:9 (Widescreen)" }
-    };
-    AddWidget(path, "Screen Format", WIDGET_CVAR_COMBOBOX)
-        .CVar("gAndroidDisplayMode")
-        .Callback([](WidgetInfo& info) {
-            const int mode = CVarGetInteger("gAndroidDisplayMode", 0);
-            CVarSetInteger(CVAR_LOW_RES_MODE, 0);
-            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", mode != 0);
             CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".PixelPerfectMode", 0);
             CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".VerticalResolutionToggle", 0);
-            if (mode != 0) {
-                CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", mode == 3 ? 16.0f : 4.0f);
-                CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", mode == 3 ? 9.0f : 3.0f);
-            }
-            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio", mode == 0 ? 0 : mode);
+            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", enabled ? 16.0f : 4.0f);
+            CVarSetFloat(CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", enabled ? 9.0f : 3.0f);
+            CVarSetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".UIComboItem.AspectRatio", enabled ? 3 : 2);
             CVarSave();
         })
-        .Options(ComboboxOptions()
-            .ComboMap(androidAspectOptions)
-            .DefaultIndex(3)
-            .Tooltip("16:9 is the Android default. 4:3 keeps the original presentation; Full Display uses the phone aspect."));''')
+        .Options(CheckboxOptions()
+            .DefaultValue(true)
+            .Tooltip("Render gameplay at true 16:9. Disable for original 4:3."));
+#endif
+
+    AddWidget(path, "Internal Resolution: %.0f%%", WIDGET_CVAR_SLIDER_FLOAT)''')
 
 replace("src/port/Engine.cpp",
 '''    this->context->InitConsoleVariables(); // without this line the controldeck constructor failes in
